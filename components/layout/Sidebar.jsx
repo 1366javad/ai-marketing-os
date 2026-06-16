@@ -51,12 +51,9 @@ export default function Sidebar({ currentPageName }) {
   return (
     <aside className="w-[290px] h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-white/[0.06] flex flex-col fixed left-0 top-0 z-30">
       {/* Logo */}
-      <Link
-        href="/"
-        className="px-5 py-5 border-b border-gray-100 dark:border-white/[0.06] block hover:opacity-80 transition-opacity"
-      >
+      <div className="px-5 py-5 border-b border-gray-100 dark:border-white/[0.06] block hover:opacity-80 transition-opacity">
         <Logo />
-      </Link>
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto custom-scrollbar">

@@ -244,7 +244,7 @@ export default function ContentTab({ campaign, outputs = [] }) {
           <button
             onClick={generate}
             disabled={!prompt.trim() || isGenerating}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#7B5CFF] text-white text-sm font-medium disabled:opacity-50 hover:shadow-lg hover:shadow-indigo-500/25 transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#7B5CFF] text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-indigo-500/25 transition-all"
           >
             {isGenerating ? (
               <>

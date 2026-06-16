@@ -4,9 +4,9 @@ import { createClient } from "@/app/lib/supabase/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req) {
+export async function POST(request) {
   try {
-    const body = await req.json();
+    const body = await request.json();
     const supabase = await createClient();
 
     const {

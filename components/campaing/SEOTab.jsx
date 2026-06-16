@@ -264,7 +264,7 @@ export default function SEOTab({ seo, campaign }) {
                   {section.title}
                 </h3>
                 {section.badge && (
-                  <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.06] text-gray-500">
+                  <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-primary-980 text-gray-700">
                     {section.badge}
                   </span>
                 )}
@@ -287,7 +287,7 @@ export default function SEOTab({ seo, campaign }) {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setSelectedSection(section.id)}
-                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-[#3B3CFF]/10 text-[#3B3CFF] text-xs"
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg dark:bg-primary-800 dark:text-primary-300 text-xs md:text-base font-medium bg-primary-100 hover:bg-primary-200/80 dark:hover:bg-primary-700"
                       >
                         <Eye className="w-3 h-3" />
                         View
@@ -304,7 +304,7 @@ export default function SEOTab({ seo, campaign }) {
                 ) : (
                   <button
                     onClick={() => generateSection(section.id)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#3B3CFF]/10 text-[#3B3CFF] text-xs font-medium"
+                    className="w-full px-3 py-2 rounded-lg dark:bg-primary-800 dark:text-primary-300 text-xs md:text-base font-medium bg-primary-100 hover:bg-primary-200/80 dark:hover:bg-primary-700"
                   >
                     Generate
                   </button>

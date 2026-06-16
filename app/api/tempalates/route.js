@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 
-export async function GET(req) {
+export async function GET(request) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "all";
