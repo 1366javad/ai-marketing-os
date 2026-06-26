@@ -32,6 +32,7 @@ function CreateTemplateModal({ setOpenModal }) {
 
     if (data.success) {
       toast({
+        variant: "success",
         title: "Template created",
         description: "Your Template has been created successfully.",
       });

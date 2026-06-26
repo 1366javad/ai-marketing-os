@@ -1,6 +1,6 @@
 import { getCampaignById } from "@/app/lib/db/campaigns";
-import { getResearch } from "@/app/lib/db/research";
-import { getSEO } from "@/app/lib/db/seo";
+import { getCampaignResearchOutputs, getResearch } from "@/app/lib/db/research";
+import { getCampaignSeoOutputs, getSEO } from "@/app/lib/db/seo";
 import { getCampaignContent } from "@/app/lib/db/content";
 import { getCampaignCreatives } from "@/app/lib/db/creative";
 import { getCampaignVideos } from "@/app/lib/db/video";
@@ -13,19 +13,6 @@ export default async function CampaignIdPage({ params }) {
 
   const campaign = await getCampaignById(campaignId);
 
-  const research = await getResearch(campaignId);
-
-  const seo = await getSEO(campaignId);
-
-  const contentOutputs = await getCampaignContent(campaignId);
-
-  const creatives = await getCampaignCreatives(campaignId);
-
-  const videos = await getCampaignVideos(campaignId);
-
-  const ads = await getCampaignAds(campaignId);
-  const assets = await getCampaignAssets(campaignId);
-
   if (!campaign) {
     return (
       <div className="p-10">
@@ -34,11 +21,35 @@ export default async function CampaignIdPage({ params }) {
     );
   }
 
+  const [
+    research,
+    researchOutputs,
+    seo,
+    seoOutputs,
+    contentOutputs,
+    creatives,
+    videos,
+    ads,
+    assets,
+  ] = await Promise.all([
+    getResearch(campaignId),
+    getCampaignResearchOutputs(campaignId),
+    getSEO(campaignId),
+    getCampaignSeoOutputs(campaignId),
+    getCampaignContent(campaignId),
+    getCampaignCreatives(campaignId),
+    getCampaignVideos(campaignId),
+    getCampaignAds(campaignId),
+    getCampaignAssets(campaignId),
+  ]);
+
   return (
     <CampaignWorkspace
       campaign={campaign}
       research={research}
+      researchOutputs={researchOutputs}
       seo={seo}
+      seoOutputs={seoOutputs}
       contentOutputs={contentOutputs}
       creatives={creatives}
       videos={videos}

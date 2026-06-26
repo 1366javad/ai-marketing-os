@@ -97,6 +97,36 @@
 }
 
 /* Custom Scrollbar - Dark & Light Mode */
+html.custom-scrollbar,
+body.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #64748b #1e2937;
+}
+
+/* Webkit */
+html.custom-scrollbar::-webkit-scrollbar,
+body.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+html.custom-scrollbar::-webkit-scrollbar-track,
+body.custom-scrollbar::-webkit-scrollbar-track {
+  background: #1e2937;
+}
+
+html.custom-scrollbar::-webkit-scrollbar-thumb,
+body.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 20px;
+}
+
+/* Hover */
+html.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+body.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #64748b #1e2937;
@@ -153,4 +183,16 @@
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+@keyframes navigation-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+.animate-navigation-progress {
+  animation: navigation-progress 1s ease-in-out infinite;
 }

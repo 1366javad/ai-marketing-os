@@ -7,22 +7,28 @@ import HeroSection from "@/components/landing/HeroSection";
 import PricingSection from "@/components/landing/PricingSection";
 import WorkflowSection from "@/components/landing/WorkflowSection";
 import Navbar from "@/components/layout/Navbar";
+import { getUserAndProfile } from "@/app/lib/db/getUserData";
 
-function Home() {
+async function Home() {
+  const { user } = await getUserAndProfile();
+  const primaryCta = user
+    ? { href: "/dashboard", label: "Dashboard" }
+    : { href: "/signup", label: "Start for Free" };
+
   return (
     <header>
       <Navbar />
       <main>
-        <HeroSection />
+        <HeroSection primaryCta={primaryCta} />
         {/* featur */}
         <FeaturesSection />
         {/* content */}
-        <ContentSection />
+        <ContentSection primaryCta={primaryCta} />
         {/* workflow */}
         <WorkflowSection />
         {/* price */}
         <PricingSection />
-        <FAQSection />
+        <FAQSection primaryCta={primaryCta} />
         <Footer />
       </main>
     </header>

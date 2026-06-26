@@ -3,7 +3,7 @@ import { FaSearch } from "react-icons/fa";
 import Profile from "./Profile";
 import ThemeToggle from "../layout/ThemeToggle";
 
-function SearchBar() {
+function SearchBar({ user, profile }) {
   return (
     <header className="h-16 border-b border-base bg-card/80 backdrop-blur-sm sticky top-0 z-30 px-6 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -23,7 +23,7 @@ function SearchBar() {
 
       <div className="flex items-center gap-4">
         <ThemeToggle />
-        <Profile />
+        <Profile initialUser={user} initialProfile={profile} />
       </div>
     </header>
   );

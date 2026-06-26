@@ -1,4 +1,5 @@
 import { createClient } from "@/app/lib/supabase/server";
+import { buildUserProfile } from "@/app/lib/auth/profile";
 
 export async function getUserAndProfile() {
   const supabase = await createClient();
@@ -17,5 +18,5 @@ export async function getUserAndProfile() {
     profile = data;
   }
 
-  return { user, profile };
+  return { user, profile: buildUserProfile(user, profile) };
 }

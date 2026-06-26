@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useNavigationProgress } from "@/app/lib/context/NavigationContext";
 import React from "react";
 import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
@@ -12,8 +13,10 @@ export default function EmptyProjectsState({
   setOpen,
 }) {
   const router = useRouter();
+  const { startNavigation } = useNavigationProgress();
   function handleClick() {
     if (type === "dashboard") {
+      startNavigation();
       router.push("/dashboard/projects");
       return;
     }

@@ -1,8 +1,24 @@
 # AI Marketing OS
 
-AI Marketing OS is an AI-powered marketing command center designed to help businesses plan, research, create, optimize, and manage marketing campaigns from a single workspace.
+AI Marketing OS is a campaign-centric AI workspace that helps marketing teams plan, research, create, review, and launch campaigns from a single unified operating system.
 
-Built with Next.js, Supabase, and modern AI models, the platform combines campaign management, market research, SEO planning, content generation, creative production, video workflows, advertising assets, and analytics into one unified operating system.
+Instead of isolated AI tools, Marketing OS connects Research, SEO, Content, Creative, Ads, Assets, and Campaign Intelligence into one continuous workflow powered by shared campaign memory.
+
+---
+
+## AI Architecture
+
+Marketing OS is built around a campaign-centric AI architecture.
+
+Core principles:
+
+- Campaign Context
+- Shared Memory
+- Module Contracts
+- Artifact-based Memory
+- Context Slicing
+- Approval Workflow
+- Campaign Intelligence
 
 ---
 
@@ -149,3 +165,57 @@ AI Marketing OS is designed to become a complete AI-powered marketing operating 
 8. Analyze performance
 
 All from a single unified campaign workspace.
+
+---
+
+## Environment Variables
+
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+SUPABASE_SERVICE_ROLE_KEY
+
+GEMINI_API_KEY
+
+OPENROUTER_API_KEY
+
+---
+
+## Documentation
+
+Architecture documentation lives under:
+
+docs/
+
+- ADRs
+- Contracts
+- Memory Schema
+- Context Slicing
+- Analytics
+
+---
+
+## Roadmap
+
+Current
+
+✅ Research
+
+✅ SEO
+
+✅ Content
+
+✅ Creative
+
+✅ Ads
+
+🚧 Video
+
+🚧 Billing
+
+🚧 Campaign Intelligence
+
+---
+
+The long-term vision is to replace disconnected marketing tools with a single AI-native operating system where every module shares campaign memory and contributes to one continuous workflow.

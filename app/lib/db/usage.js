@@ -1,8 +1,7 @@
 import { createClient } from "@/app/lib/supabase/server";
 
-const supabase = createClient();
-
 export async function getUsageStats(userId) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("ai_usage")
     .select("*")
@@ -16,6 +15,7 @@ export async function getUsageStats(userId) {
 }
 
 export async function createUsageEvent(payload) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("ai_usage")
     .insert(payload)

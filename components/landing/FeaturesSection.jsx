@@ -1,93 +1,89 @@
 import {
-  Search,
+  BarChart3,
   FileText,
   Image,
-  Video,
-  BarChart3,
   Megaphone,
+  Search,
+  Target,
 } from "lucide-react";
 
 const features = [
   {
     icon: Search,
-    title: "Market Research",
+    title: "Research",
     description:
-      "AI-powered competitor analysis, audience insights, and trend discovery to inform every campaign.",
+      "Understand your audience, competitors, pain points, market signals, and campaign opportunities.",
     gradient: "from-blue-500 to-cyan-500",
   },
   {
-    icon: FileText,
-    title: "Content Hub",
+    icon: Target,
+    title: "SEO",
     description:
-      "Generate blogs, emails, social posts, and landing pages tailored to your brand voice.",
+      "Turn approved research into keyword, topic, and content strategy for your campaign.",
+    gradient: "from-emerald-500 to-teal-500",
+  },
+  {
+    icon: FileText,
+    title: "Content",
+    description:
+      "Generate campaign-aware blogs, emails, landing pages, newsletters, and social posts.",
     gradient: "from-indigo-500 to-purple-500",
   },
   {
     icon: Image,
-    title: "Creative Studio",
+    title: "Creative",
     description:
-      "Produce on-brand visuals, ad creatives, and design assets at scale with AI.",
+      "Create creative briefs, visual directions, image prompts, and campaign-ready assets.",
     gradient: "from-purple-500 to-pink-500",
   },
   {
-    icon: Video,
-    title: "Video Studio",
-    description:
-      "Script, storyboard, and generate video content for every platform in minutes.",
-    gradient: "from-pink-500 to-orange-500",
-  },
-  {
     icon: Megaphone,
-    title: "Ad Campaigns",
+    title: "Ads",
     description:
-      "Build and launch high-converting ad copy for Google, Meta, LinkedIn, and TikTok.",
+      "Generate Google, Meta, LinkedIn, and TikTok ad copy from approved campaign memory.",
     gradient: "from-orange-500 to-red-500",
   },
   {
     icon: BarChart3,
-    title: "Analytics",
+    title: "Campaign Intelligence",
     description:
-      "Track performance across all channels and get AI recommendations to optimise ROI.",
+      "Track readiness, approvals, risks, missing steps, assets, and the next deterministic action.",
     gradient: "from-green-500 to-teal-500",
   },
 ];
 
 function FeaturesSection() {
   return (
-    <section id="features" className="py-20 px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Every Marketing Tool,{" "}
+    <section id="features" className="px-6 py-20">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-16 text-center">
+          <h2 className="mb-4 text-4xl font-bold md:text-5xl">
+            One campaign workflow,{" "}
             <span className="bg-gradient-to-r from-[#3B3CFF] to-[#FF6B6B] bg-clip-text text-transparent">
-              One Platform
+              connected by memory
             </span>
           </h2>
-          <p className="text-xl max-w-2xl mx-auto text-slate-600">
-            From research to results — Marketing OS covers every step of your
-            campaign lifecycle
+          <p className="mx-auto max-w-3xl text-xl text-slate-600 dark:text-slate-300">
+            Research feeds SEO, SEO feeds content, content feeds creative and
+            ads, and every approved output becomes part of the campaign.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {features.map((feature, i) => (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {features.map((feature) => (
             <div
-              key={i}
-              className="group p-8 rounded-2xl border transition-all duration-300 hover:-translate-y-2
-                  dark:bg-white/[0.02] dark:border-white/[0.06] dark:hover:bg-white/[0.04] dark:hover:border-white/[0.1]
-                    bg-white border-slate-200/60 hover:border-slate-300/60 hover:shadow-xl"
+              key={feature.title}
+              className="group rounded-2xl border border-slate-200/60 bg-white p-8 transition-all duration-300 hover:-translate-y-2 hover:border-slate-300/60 hover:shadow-xl dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/[0.1] dark:hover:bg-white/[0.04]"
             >
               <div
-                className={` 
-                  w-14 h-14 rounded-xl bg-gradient-to-br flex items-center justify-center mb-6 group-hover:scale-110 transition-transform
-                  ${feature.gradient}`}
+                className={`mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br transition-transform group-hover:scale-110 ${feature.gradient}`}
               >
-                <feature.icon className="w-7 h-7 text-white" />
+                <feature.icon className="h-7 w-7 text-white" />
               </div>
-              <h3 className="text-xl font-bold mb-3 dark:text-white text-slate-900">
+              <h3 className="mb-3 text-xl font-bold text-slate-900 dark:text-white">
                 {feature.title}
               </h3>
-              <p className="text-base leading-relaxed dark:text-slate-400 text-slate-600">
+              <p className="text-base leading-relaxed text-slate-600 dark:text-slate-400">
                 {feature.description}
               </p>
             </div>

@@ -1,140 +1,220 @@
-import React from "react";
+"use client";
 
-import { cn } from "@/app/lib/utils/utils";
-import { Megaphone, Sparkles } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useNavigationProgress } from "@/app/lib/context/NavigationContext";
+import { Facebook, Linkedin, Search, Video, X } from "lucide-react";
+
 import GlassCard from "@/components/ui/GlassCard";
-import Link from "next/link";
+import { cn } from "@/app/lib/utils/utils";
 
-const PLATFORMS = [
+const AD_TYPES = [
   {
-    emoji: "🔍",
+    id: "google_ads",
     label: "Google Ads",
-    desc: "Search, Display, and Performance Max ad copy.",
-    outputs: [
-      "Headlines (30 char)",
-      "Descriptions (90 char)",
-      "CTAs",
-      "Ad Extensions",
-    ],
-    color: "from-blue-500/10 to-cyan-500/10",
+    tag: "Search Intent",
+    desc: "Create search headlines, descriptions, extensions, and CTAs.",
+    bestFor: ["High-intent users", "Lead generation", "Search traffic"],
+    icon: Search,
+    iconColor: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-500/10",
   },
   {
-    emoji: "👥",
+    id: "meta_ads",
     label: "Meta Ads",
-    desc: "Facebook and Instagram ad creatives and copy.",
-    outputs: [
-      "Primary Text",
-      "Headlines",
-      "Ad Copy Variations",
-      "Creative Brief",
-    ],
-    color: "from-indigo-500/10 to-blue-500/10",
+    tag: "Awareness & Conversion",
+    desc: "Create primary text, headlines, CTAs, and creative angles.",
+    bestFor: ["Facebook & Instagram", "Retargeting", "Brand awareness"],
+    icon: Facebook,
+    iconColor: "text-indigo-600 dark:text-indigo-400",
+    bg: "bg-indigo-50 dark:bg-indigo-500/10",
   },
   {
-    emoji: "💼",
+    id: "linkedin_ads",
     label: "LinkedIn Ads",
-    desc: "Professional B2B advertising copy.",
-    outputs: [
-      "Headline",
-      "Introductory Text",
-      "Description",
-      "Sponsored Content",
+    tag: "B2B Lead Generation",
+    desc: "Create professional sponsored content and lead-generation copy.",
+    bestFor: [
+      "Professional audiences",
+      "SaaS & Services",
+      "High-value leads",
     ],
-    color: "from-blue-600/10 to-blue-400/10",
+    icon: Linkedin,
+    iconColor: "text-sky-600 dark:text-sky-400",
+    bg: "bg-sky-50 dark:bg-sky-500/10",
   },
   {
-    emoji: "🎵",
+    id: "tiktok_ads",
     label: "TikTok Ads",
-    desc: "Engaging TikTok video ad scripts and copy.",
-    outputs: ["Hook (3 sec)", "Script", "Caption", "Hashtags"],
-    color: "from-pink-500/10 to-red-500/10",
+    tag: "Short-form Growth",
+    desc: "Create native hooks, short-form scripts, ad text, and CTAs.",
+    bestFor: ["Younger audiences", "Fast reach", "Video-first campaigns"],
+    icon: Video,
+    iconColor: "text-pink-600 dark:text-pink-400",
+    bg: "bg-pink-50 dark:bg-pink-500/10",
   },
 ];
 
-export default function AdsView({ platforms = [] }) {
+export default function AdsView({ campaigns = [] }) {
+  const router = useRouter();
+  const { startNavigation } = useNavigationProgress();
+  const [selectedType, setSelectedType] = useState(null);
+  const [query, setQuery] = useState("");
+
+  const filteredCampaigns = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return campaigns;
+
+    return campaigns.filter((campaign) =>
+      [campaign.name, campaign.product_name, campaign.industry]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery)),
+    );
+  }, [campaigns, query]);
+
+  const openWorkspace = (campaignId) => {
+    startNavigation();
+    router.push(
+      `/dashboard/campaings/${campaignId}?tab=ads&adsTask=${
+        selectedType?.id || "google_ads"
+      }`,
+    );
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2
-            className="text-2xl font-bold tracking-tight
-              dark:text-white text-slate-900"
-          >
-            Ads
-          </h2>
-          <p
-            className="text-sm mt-1
-              dark:text-slate-400 text-slate-500"
-          >
-            Multi-platform advertising assets powered by AI
-          </p>
-        </div>
-        <Link
-          href="/dashboard/campaings"
-          className="text-xs font-medium px-4 py-2 rounded-xl border transition-colors
-            dark:border-white/[0.08] dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.06] border-slate-200 text-slate-600 hover:bg-slate-50"
-        >
-          ← Open a Campaign to Generate Ads
-        </Link>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+          Ads
+        </h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Choose the best advertising channel for your campaign.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {platforms.map((p) => (
-          <GlassCard
-            key={p.id}
-            className={cn("p-5 bg-gradient-to-br", p.gradient_class)}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-2xl">{p.emoji}</span>
-              <div>
-                <p
-                  className="text-sm font-bold
-                    dark:text-white text-slate-900"
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {AD_TYPES.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSelectedType(item)}
+              className="group text-left"
+            >
+              <GlassCard className="h-full p-5 transition group-hover:-translate-y-0.5 group-hover:border-[#3B3CFF]/30">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl",
+                    item.bg,
+                  )}
                 >
-                  {p.name}
+                  <Icon className={cn("h-5 w-5", item.iconColor)} />
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                    {item.label}
+                  </h3>
+                  <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/50">
+                    {item.tag}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  {item.desc}
                 </p>
-                <p
-                  className="text-xs
-                    dark:text-slate-500 text-slate-400"
-                >
-                  {p.description}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {p.ad_output_types
-                ?.sort((a, b) => a.sort_order - b.sort_order)
-                .map((o) => (
-                  <div
-                    key={o.id}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs border
-                    dark:bg-white/[0.04] dark:border-white/[0.06]
-                     bg-white/80 border-slate-100"
-                  >
-                    <span
-                      className="font-medium
-                      dark:text-slate-300 text-slate-700"
-                    >
-                      {o.name}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full
-                        dark:bg-white/[0.06] dark:text-slate-400
-                         bg-slate-100 text-slate-400"
-                      >
-                        Not generated
-                      </span>
-                      <button className="text-[#3B3CFF] hover:underline text-[10px] font-medium">
-                        Generate
-                      </button>
-                    </div>
+                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-white/10">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/40">
+                    Best For
                   </div>
-                ))}
-            </div>
-          </GlassCard>
-        ))}
+                  <ul className="mt-2 space-y-2">
+                    {item.bestFor.map((benefit) => (
+                      <li
+                        key={benefit}
+                        className="flex items-center gap-2 text-sm text-slate-600 dark:text-white/60"
+                      >
+                        <span
+                          className="h-1.5 w-1.5 flex-none rounded-full bg-emerald-500"
+                          aria-hidden="true"
+                        />
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </GlassCard>
+            </button>
+          );
+        })}
       </div>
+
+      {selectedType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-dark-surface">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-white/40">
+                  Select Campaign
+                </div>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+                  Open {selectedType.label}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedType(null);
+                  setQuery("");
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 dark:border-white/10 dark:text-white/50 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                title="Close campaign selector"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search campaigns..."
+                className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white"
+              />
+            </div>
+
+            <div className="custom-scrollbar mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              {filteredCampaigns.length > 0 ? (
+                filteredCampaigns.map((campaign) => (
+                  <button
+                    key={campaign.id}
+                    type="button"
+                    onClick={() => openWorkspace(campaign.id)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-[#3B3CFF]/40 hover:bg-slate-50 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
+                  >
+                    <div className="font-medium text-slate-900 dark:text-white">
+                      {campaign.name}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-white/45">
+                      {campaign.product_name && (
+                        <span>{campaign.product_name}</span>
+                      )}
+                      {campaign.industry && <span>{campaign.industry}</span>}
+                      {campaign.status && (
+                        <span className="capitalize">{campaign.status}</span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-white/45">
+                  No campaigns found.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

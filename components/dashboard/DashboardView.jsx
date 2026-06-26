@@ -21,6 +21,7 @@ import StatsCard from "@/components/dashboard/StatsCard";
 import CampaignCard from "@/components/campaigns/CampaignCard";
 
 import { useRouter } from "next/navigation";
+import { useNavigationProgress } from "@/app/lib/context/NavigationContext";
 
 const recentActivity = [
   {
@@ -88,6 +89,7 @@ const quickActions = [
 
 function DashboardView({ dashboardData }) {
   const router = useRouter();
+  const { startNavigation } = useNavigationProgress();
 
   const isLoading = false;
   const campaigns = dashboardData?.campaigns || [];
@@ -119,7 +121,10 @@ function DashboardView({ dashboardData }) {
           </p>
         </div>
         <button
-          onClick={() => router.push("/dashboard/campaings")}
+          onClick={() => {
+            startNavigation();
+            router.push("/dashboard/campaings");
+          }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF] text-white text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all duration-200 hover:-translate-y-[1px]"
         >
           <Plus className="w-4 h-4" />

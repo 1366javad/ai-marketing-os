@@ -2,47 +2,52 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/app/lib/supabase/client";
+import { buildUserProfile } from "@/app/lib/auth/profile";
 
-export function useUser() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+export function useUser({ initialUser = null, initialProfile = null } = {}) {
+  const [supabase] = useState(() => createClient());
+  const [user, setUser] = useState(initialUser);
+  const [profile, setProfile] = useState(
+    buildUserProfile(initialUser, initialProfile),
+  );
+  const [loading, setLoading] = useState(!initialUser);
 
   useEffect(() => {
+    async function loadProfile(nextUser) {
+      if (!nextUser) {
+        setUser(null);
+        setProfile(null);
+        return;
+      }
+
+      setUser(nextUser);
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", nextUser.id)
+        .maybeSingle();
+      setProfile(buildUserProfile(nextUser, data));
+    }
+
     async function fetchUser() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (user) {
-        setUser(user);
-
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        setProfile(data);
-      }
+      await loadProfile(user);
       setLoading(false);
     }
 
-    fetchUser();
+    if (!initialUser) fetchUser();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadProfile(session?.user || null).finally(() => setLoading(false));
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [initialUser, supabase]);
 
-  return { user, profile, loading };
+  return { user, profile, loading, setProfile };
 }

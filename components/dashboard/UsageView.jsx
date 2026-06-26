@@ -1,270 +1,271 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  Zap,
   Activity,
-  Cpu,
-  BrainCircuit,
-  Clock,
+  CheckCircle2,
   ChevronDown,
-  Moon,
-  RefreshCw,
+  CircleDollarSign,
+  Clock,
+  Cpu,
   Download,
-  FileText,
-  Mail,
-  Megaphone,
-  Globe,
-  BookOpen,
-  ArrowUpRight,
+  Layers3,
+  RefreshCw,
+  Server,
+  Zap,
 } from "lucide-react";
 import UsageChart from "./UsageChart";
 
-function getActivityIcon(action = "") {
-  const text = action.toLowerCase();
-
-  if (text.includes("blog")) return FileText;
-  if (text.includes("email")) return Mail;
-  if (text.includes("newsletter")) return Mail;
-  if (text.includes("social")) return Megaphone;
-  if (text.includes("ad")) return Megaphone;
-  if (text.includes("product")) return Globe;
-  if (text.includes("landing")) return Globe;
-
-  return FileText;
-}
 const timeRanges = ["Last 7 days", "Last 30 days", "Last 90 days", "All time"];
 
-function UsageView({ usage, stats }) {
+const moduleColors = {
+  research: "bg-sky-500",
+  seo: "bg-emerald-500",
+  content: "bg-violet-500",
+  creative: "bg-rose-500",
+  ads: "bg-amber-500",
+  video: "bg-cyan-500",
+  unknown: "bg-slate-400",
+};
+
+function UsageView({
+  usage = [],
+  plan = {
+    name: "Free Plan",
+    dailyCredits: 100,
+    todayCredits: 0,
+    remainingCredits: 100,
+  },
+}) {
   const [timeRange, setTimeRange] = useState("Last 7 days");
   const [isTimeRangeOpen, setIsTimeRangeOpen] = useState(false);
 
-  function getStartDate(range) {
-    const date = new Date();
+  const filteredUsage = useMemo(() => {
+    const startDate = getStartDate(timeRange);
+    if (!startDate) return usage;
 
-    if (range === "Last 7 days") date.setDate(date.getDate() - 7);
-    if (range === "Last 30 days") date.setDate(date.getDate() - 30);
-    if (range === "Last 90 days") date.setDate(date.getDate() - 90);
+    return usage.filter((event) => {
+      const createdAt = new Date(event.createdAt);
+      return !Number.isNaN(createdAt.getTime()) && createdAt >= startDate;
+    });
+  }, [timeRange, usage]);
 
-    return range === "All time" ? null : date;
-  }
-
-  const startDate = getStartDate(timeRange);
-
-  const filteredUsage = startDate
-    ? usage.filter((item) => new Date(item.created_at) >= startDate)
-    : usage;
-
-  const filteredStats = {
-    totalRequests: filteredUsage.length,
-    totalTokens: filteredUsage.reduce(
-      (sum, item) => sum + (item.tokens_used || 0),
-      0,
-    ),
-    totalCost: filteredUsage.reduce(
-      (sum, item) => sum + Number(item.cost || 0),
-      0,
-    ),
-  };
+  const filteredStats = useMemo(
+    () => summarizeEvents(filteredUsage),
+    [filteredUsage],
+  );
+  const periodStats = useMemo(
+    () => [
+      { label: "Today", ...summarizeEvents(filterSince(usage, startOfToday())) },
+      {
+        label: "This Week",
+        ...summarizeEvents(filterSince(usage, startOfWeek())),
+      },
+      {
+        label: "This Month",
+        ...summarizeEvents(filterSince(usage, startOfMonth())),
+      },
+    ],
+    [usage],
+  );
+  const moduleUsage = useMemo(
+    () => groupUsage(filteredUsage, "module"),
+    [filteredUsage],
+  );
+  const providerUsage = useMemo(
+    () => groupUsage(filteredUsage, "provider"),
+    [filteredUsage],
+  );
+  const recentActivity = filteredUsage.slice(0, 8);
 
   const statsCards = [
     {
-      icon: Activity,
+      icon: CircleDollarSign,
       color: "from-[#3B3CFF] to-[#7B5CFF]",
-      value: filteredStats.totalRequests,
-      label: "Total Requests",
-      desc: "AI generations",
+      value: filteredStats.credits.toLocaleString(),
+      label: "Credits Used",
+      desc: timeRange,
     },
-
     {
       icon: Cpu,
       color: "from-purple-500 to-pink-500",
-      value: filteredStats.totalTokens,
+      value: filteredStats.tokens.toLocaleString(),
       label: "Tokens Used",
-      desc: "Total tokens",
+      desc: "Provider-reported tokens",
     },
-
     {
-      icon: BrainCircuit,
+      icon: Activity,
       color: "from-[#FF6B6B] to-[#FF8E53]",
-      value: filteredUsage.length,
-      label: "Usage Events",
-      desc: "Tracked activities",
+      value: filteredStats.requests.toLocaleString(),
+      label: "Requests",
+      desc: "Recorded AI events",
     },
-
     {
-      icon: Clock,
+      icon: Server,
       color: "from-emerald-500 to-teal-500",
-      value: `${Math.round(filteredStats.totalTokens / 200)} min`,
-      label: "Time Saved",
-      desc: "Estimated",
+      value: filteredStats.providers,
+      label: "Providers",
+      desc: "Active in this period",
     },
   ];
 
-  const recentActivity = filteredUsage || [];
-
   function handleExportCsv() {
-    const headers = ["Date", "Action", "Model", "Tokens", "Cost"];
-
-    const rows = recentActivity.map((item) => [
-      new Date(item.created_at).toLocaleDateString(),
-      item.action || "Content Generation",
-      item.model || "Unknown",
-      item.tokens_used || 0,
-      item.cost || 0,
+    const headers = [
+      "Time",
+      "Campaign",
+      "Module",
+      "Artifact",
+      "Provider",
+      "Model",
+      "Credits",
+      "Tokens",
+      "Status",
+    ];
+    const rows = filteredUsage.map((event) => [
+      formatDateTime(event.createdAt),
+      event.campaignName,
+      event.module,
+      event.artifact,
+      event.provider,
+      event.model,
+      event.credits,
+      event.tokens,
+      event.status,
     ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCsv).join(","))
+      .join("\n");
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+    );
     const link = document.createElement("a");
-
     link.href = url;
-
     link.download = `usage-report-${new Date().toISOString().slice(0, 10)}.csv`;
-
     document.body.appendChild(link);
-
     link.click();
-
     document.body.removeChild(link);
-
     URL.revokeObjectURL(url);
   }
 
   return (
     <main className="flex-1 p-6">
-      <div className="min-h-screen transition-colors duration-300 relative bg-[#F8FAFC] dark:bg-gray-800/70 text-slate-900 dark:text-slate-100">
-        {/* Background blobs */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#3B3CFF]/[0.06] dark:bg-indigo-500/[0.08] rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-[#FF6B6B]/[0.04] dark:bg-rose-500/[0.06] rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="min-h-screen bg-[#F8FAFC] text-slate-900 transition-colors duration-300 dark:bg-gray-800/70 dark:text-slate-100">
+        <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                Usage Overview
+                Usage
               </h1>
-              <p className="text-sm mt-1 text-slate-500 dark:text-slate-400">
-                Track your AI activity, tokens, and plan usage
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Account consumption across AI modules and providers.
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Time range dropdown (placeholder) */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsTimeRangeOpen((prev) => !prev)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-gray-700 shadow-sm"
-                >
-                  {timeRange}
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform ${
-                      isTimeRangeOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsTimeRangeOpen((current) => !current)}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-300 dark:hover:bg-gray-700"
+              >
+                {timeRange}
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    isTimeRangeOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-                {isTimeRangeOpen && (
-                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-20 overflow-hidden">
-                    {timeRanges.map((range) => (
-                      <button
-                        key={range}
-                        type="button"
-                        onClick={() => {
-                          setTimeRange(range);
-                          setIsTimeRangeOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                          timeRange === range
-                            ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold"
-                            : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        {range}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {isTimeRangeOpen && (
+                <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  {timeRanges.map((range) => (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => {
+                        setTimeRange(range);
+                        setIsTimeRangeOpen(false);
+                      }}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                        timeRange === range
+                          ? "bg-indigo-50 font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400"
+                          : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Plan Card */}
-          <div className="rounded-2xl border p-6 flex flex-col sm:flex-row sm:items-center gap-6 transition-all duration-200 bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-800 shadow-sm">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
-                <Zap className="w-6 h-6 text-white" />
+          <section className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center">
+            <div className="flex flex-1 items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] shadow-lg shadow-indigo-500/25">
+                <Zap className="h-6 w-6 text-white" />
               </div>
               <div>
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="mb-0.5 flex flex-wrap items-center gap-2">
                   <span className="text-lg font-bold text-slate-900 dark:text-white">
-                    Pro Plan
+                    {plan.name}
                   </span>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-[#3B3CFF] to-[#7B5CFF] text-white">
-                    ACTIVE
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-gray-800 dark:text-slate-400">
+                    DAILY CREDITS
                   </span>
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Renews on March 25, 2026
+                  Today: {Number(plan.todayCredits || 0).toLocaleString()} /{" "}
+                  {Number(plan.dailyCredits || 0).toLocaleString()} credits used.
                 </p>
               </div>
             </div>
 
-            <div className="flex-1 space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Credits Used
-                </span>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  7,340 / 10,000
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-gray-800">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#3B3CFF] to-[#7B5CFF]"
-                  style={{ width: "73%" }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                73% used · 2,660 credits remaining
+            <div className="min-w-[220px]">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                Remaining Today
+              </p>
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+                {Number(plan.remainingCredits || 0).toLocaleString()} credits
+              </p>
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Resets tomorrow
               </p>
             </div>
+          </section>
 
-            <button className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53] text-white text-sm font-semibold shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-200">
-              Upgrade Plan
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {statsCards.map((stat, index) => (
+          <section className="grid gap-4 lg:grid-cols-3">
+            {periodStats.map((period) => (
               <div
-                key={index}
-                className="rounded-2xl border p-5 transition-all duration-200 cursor-default bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 hover:shadow-lg shadow-sm"
+                key={period.label}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+              >
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {period.label}
+                </h2>
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <Metric label="Credits" value={period.credits} />
+                  <Metric label="Tokens" value={period.tokens} />
+                  <Metric label="Requests" value={period.requests} />
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {statsCards.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
               >
                 <div
-                  className={`w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4 shadow-lg ${stat.color} shadow-indigo-500/20`}
+                  className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg ${stat.color}`}
                 >
-                  <stat.icon className="w-5 h-5 text-white " />
+                  <stat.icon className="h-5 w-5 text-white" />
                 </div>
-                <p className="text-2xl font-bold mb-1 text-slate-900 dark:text-white">
+                <p className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">
                   {stat.value}
                 </p>
-                <p className="text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+                <p className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">
                   {stat.label}
                 </p>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
@@ -272,24 +273,37 @@ function UsageView({ usage, stats }) {
                 </p>
               </div>
             ))}
+          </section>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 dark:border-gray-800 dark:bg-gray-900">
+            <UsageChart usage={filteredUsage} />
           </div>
 
-          {/* Usage Chart – placeholder (Recharts یا Chart.js رو باید جدا implement کنی) */}
-          <div className="rounded-2xl border p-6 transition-all duration-200 bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-800 shadow-sm">
-            {/* placeholder chart */}
+          <section className="grid gap-6 lg:grid-cols-2">
+            <UsageBreakdown
+              icon={Layers3}
+              title="Module Usage"
+              description="Requests by AI workspace"
+              rows={moduleUsage}
+              colorFor={(name) => moduleColors[name] || moduleColors.unknown}
+            />
+            <UsageBreakdown
+              icon={Server}
+              title="Provider Usage"
+              description="Final provider that completed each request"
+              rows={providerUsage}
+              colorFor={() => "bg-[#3B3CFF]"}
+            />
+          </section>
 
-            <UsageChart />
-          </div>
-
-          {/* Recent Activity Table */}
-          <div className="rounded-2xl border overflow-hidden transition-all duration-200 bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-800 shadow-sm">
-            <div className="px-6 py-4 border-b flex items-center justify-between border-slate-200 dark:border-gray-800">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-gray-800">
               <div>
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white">
                   Recent Activity
-                </h3>
-                <p className="text-xs mt-0.5 text-slate-400 dark:text-slate-500">
-                  Last 8 AI generation events
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                  Latest account-level AI consumption events
                 </p>
               </div>
             </div>
@@ -298,114 +312,277 @@ function UsageView({ usage, stats }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-gray-800/50">
-                    <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Date
-                    </th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Action
-                    </th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Model
-                    </th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Tokens
-                    </th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Cost
-                    </th>
+                    {[
+                      "Time",
+                      "Campaign",
+                      "Module",
+                      "Provider",
+                      "Credits",
+                      "Tokens",
+                      "Status",
+                    ].map((heading) => (
+                      <th
+                        key={heading}
+                        className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500"
+                      >
+                        {heading}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {recentActivity.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center">
-                          <Clock className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
-
-                          <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            No activity found
-                          </h4>
-
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            No AI activity was recorded during {timeRange}.
-                          </p>
-                        </div>
+                      <td colSpan={7} className="px-6 py-12 text-center">
+                        <Clock className="mx-auto mb-3 h-10 w-10 text-slate-300 dark:text-slate-600" />
+                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          No usage recorded
+                        </h3>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          New Agent V2 generations will appear here.
+                        </p>
                       </td>
                     </tr>
                   ) : (
-                    recentActivity.map((item, index) => {
-                      const Icon = getActivityIcon(item.action);
-
-                      return (
-                        <tr
-                          key={index}
-                          className={`group transition-colors duration-150 ${
-                            index % 2 === 0
-                              ? "bg-white dark:bg-gray-900"
-                              : "bg-slate-50/60 dark:bg-gray-800/30"
-                          } hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30`}
-                        >
-                          <td className="px-6 py-3.5 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
-                            {new Date(item.created_at).toLocaleDateString()}
-                          </td>
-
-                          <td className="px-6 py-3.5">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-slate-100 dark:bg-gray-800">
-                                <Icon className="w-3.5 h-3.5 text-indigo-500" />
-                              </div>
-
-                              <span className="font-medium text-xs text-slate-700 dark:text-slate-300">
-                                {item.action || "Content Generation"}
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="px-6 py-3.5">
-                            <span className="text-xs px-2.5 py-1 rounded-lg font-medium bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-slate-400">
-                              {item.model || "Mock Model"}
-                            </span>
-                          </td>
-
-                          <td className="px-6 py-3.5 text-xs font-medium tabular-nums text-slate-700 dark:text-slate-300">
-                            {(item.tokens_used || 0).toLocaleString()}
-                          </td>
-
-                          <td className="px-6 py-3.5">
-                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                              ${Number(item.cost || 0).toFixed(2)}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
+                    recentActivity.map((event, index) => (
+                      <tr
+                        key={event.id || `${event.createdAt}-${index}`}
+                        className="border-t border-slate-100 transition hover:bg-indigo-50/40 dark:border-gray-800 dark:hover:bg-indigo-950/30"
+                      >
+                        <td className="whitespace-nowrap px-5 py-3.5 text-xs text-slate-500 dark:text-slate-400">
+                          {formatDateTime(event.createdAt)}
+                        </td>
+                        <td className="max-w-[180px] truncate px-5 py-3.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                          {event.campaignName}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center gap-2 text-xs font-medium capitalize text-slate-700 dark:text-slate-300">
+                            <span
+                              className={`h-2 w-2 rounded-full ${
+                                moduleColors[event.module] ||
+                                moduleColors.unknown
+                              }`}
+                            />
+                            {formatLabel(event.module)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-600 dark:bg-gray-800 dark:text-slate-400">
+                            {event.provider}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                          {event.credits.toLocaleString()}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-medium tabular-nums text-slate-700 dark:text-slate-300">
+                          {event.tokens.toLocaleString()}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <StatusBadge status={event.status} />
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
 
-          {/* Footer info */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 pb-4">
+          <footer className="flex flex-col items-center justify-between gap-3 pb-4 pt-2 sm:flex-row">
             <div className="flex items-center gap-2">
-              <RefreshCw className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
+              <RefreshCw className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
               <p className="text-xs text-slate-400 dark:text-slate-500">
-                Usage data updates every 24 hours
+                Usage events are recorded after each completed generation.
               </p>
             </div>
-
             <button
+              type="button"
               onClick={handleExportCsv}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-medium transition-all duration-200 bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-gray-700 shadow-sm"
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-300 dark:hover:bg-gray-700"
             >
-              <Download className="w-3.5 h-3.5" />
-              Export Data
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
             </button>
-          </div>
+          </footer>
         </div>
       </div>
     </main>
   );
+}
+
+function Metric({ label, value }) {
+  return (
+    <div>
+      <p className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+        {Number(value || 0).toLocaleString()}
+      </p>
+      <p className="text-[11px] text-slate-400 dark:text-slate-500">{label}</p>
+    </div>
+  );
+}
+
+function UsageBreakdown({ icon: Icon, title, description, rows, colorFor }) {
+  const maximum = Math.max(...rows.map((row) => row.requests), 1);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-gray-800">
+          <Icon className="h-4 w-4 text-[#3B3CFF]" />
+        </div>
+        <div>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+            {title}
+          </h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            {description}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-4">
+        {rows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">
+            No usage available for this period.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={row.name}>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <span className="text-sm font-medium capitalize text-slate-700 dark:text-slate-300">
+                  {formatLabel(row.name)}
+                </span>
+                <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500">
+                  {row.requests} requests · {row.credits} credits
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-gray-800">
+                <div
+                  className={`h-full rounded-full ${colorFor(row.name)}`}
+                  style={{ width: `${(row.requests / maximum) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const styles = {
+    completed:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    fallback:
+      "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+    failed: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+    running:
+      "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+        styles[status] || styles.completed
+      }`}
+    >
+      <CheckCircle2 className="h-3 w-3" />
+      {formatLabel(status)}
+    </span>
+  );
+}
+
+function summarizeEvents(events) {
+  const providers = new Set();
+  const summary = events.reduce(
+    (result, event) => {
+      result.requests += 1;
+      result.tokens += Number(event.tokens || 0);
+      result.credits += Number(event.credits || 0);
+      if (event.provider) providers.add(event.provider);
+      return result;
+    },
+    { requests: 0, tokens: 0, credits: 0 },
+  );
+
+  return { ...summary, providers: providers.size };
+}
+
+function groupUsage(events, key) {
+  const groups = new Map();
+
+  events.forEach((event) => {
+    const name = event[key] || "unknown";
+    const current = groups.get(name) || {
+      name,
+      requests: 0,
+      tokens: 0,
+      credits: 0,
+    };
+    current.requests += 1;
+    current.tokens += Number(event.tokens || 0);
+    current.credits += Number(event.credits || 0);
+    groups.set(name, current);
+  });
+
+  return [...groups.values()].sort((a, b) => b.requests - a.requests);
+}
+
+function getStartDate(range) {
+  if (range === "All time") return null;
+  const date = new Date();
+  const days = range === "Last 7 days" ? 7 : range === "Last 30 days" ? 30 : 90;
+  date.setDate(date.getDate() - days);
+  return date;
+}
+
+function filterSince(events, startDate) {
+  return events.filter((event) => {
+    const date = new Date(event.createdAt);
+    return !Number.isNaN(date.getTime()) && date >= startDate;
+  });
+}
+
+function startOfToday() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfWeek() {
+  const date = startOfToday();
+  const day = date.getDay();
+  date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+  return date;
+}
+
+function startOfMonth() {
+  const date = startOfToday();
+  date.setDate(1);
+  return date;
+}
+
+function formatLabel(value) {
+  return String(value || "unknown")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function escapeCsv(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 export default UsageView;

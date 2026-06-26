@@ -1,102 +1,61 @@
-import { Search } from "lucide-react";
+import { Briefcase, Rocket, Users } from "lucide-react";
 
-const testimonials = [
+const audiences = [
   {
-    name: "Sarah Chen",
-    role: "Head of Marketing",
-    company: "TechFlow",
-    content:
-      "Marketing OS replaced five separate tools. Our team ships campaigns in hours, not weeks.",
-    avatar: "🎯",
+    icon: Rocket,
+    title: "Founders",
+    description: "Turn a product idea into a launch campaign without starting from a blank page.",
+    gradient: "from-[#3B3CFF] to-[#7B5CFF]",
   },
   {
-    name: "Michael Roberts",
-    role: "Growth Director",
-    company: "GrowthLabs",
-    content:
-      "The AI research and content modules alone saved us 20+ hours a week. It's indispensable.",
-    avatar: "🚀",
+    icon: Users,
+    title: "Marketing Teams",
+    description: "Keep research, content, creative, ads, and approvals in one campaign workflow.",
+    gradient: "from-[#FF6B6B] to-[#FF8E53]",
   },
   {
-    name: "Emily Rodriguez",
-    role: "Brand Strategist",
-    company: "Momentum Agency",
-    content:
-      "Having research, creative, and ads all in one place with AI at every step is a game changer.",
-    avatar: "✨",
+    icon: Briefcase,
+    title: "Agencies",
+    description: "Generate campaign assets for multiple clients without losing context.",
+    gradient: "from-emerald-500 to-teal-500",
   },
 ];
 
 function PricingSection() {
   return (
-    <section className="py-20 px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 ">
-            Loved by{" "}
+    <section className="px-6 py-20">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-16 text-center">
+          <h2 className="mb-4 text-4xl font-bold md:text-5xl">
+            Built for teams who{" "}
             <span className="bg-gradient-to-r from-[#3B3CFF] to-[#FF6B6B] bg-clip-text text-transparent">
-              Marketing Teams
+              ship campaigns fast
             </span>
           </h2>
+          <p className="mx-auto max-w-2xl text-lg text-slate-600 dark:text-slate-300">
+            Whether you are launching a product, managing growth, or serving
+            clients, every output stays connected to the campaign.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonials.map((testimonial, index) => (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {audiences.map((audience) => (
             <div
-              key={index}
-              className="p-8 rounded-2xl border border-base transition-transform duration-500 hover:translate-y-2 hover:border-slate-300/60 hover:shadow-xl"
+              key={audience.title}
+              className="rounded-2xl border border-base p-8 transition-transform duration-300 hover:-translate-y-1 hover:border-slate-300/60 hover:shadow-xl"
             >
-              <div className="flex items-center gap-1 mb-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <svg
-                    key={i}
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="w-5 h-5 fill-amber-400 text-amber-400"
-                  >
-                    <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
-                  </svg>
-                ))}
-              </div>
-
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-8 h-8 mb-4 text-slate-300"
+              <div
+                className={`mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${audience.gradient}`}
               >
-                <path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
-                <path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
-              </svg>
-
-              <p className="text-base font-semibold mb-6 leading-relaxed text-slate-700">
-                {testimonial.content}
-              </p>
-
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] flex items-center justify-center text-2xl">
-                  {testimonial.avatar}
-                </div>
-                <div>
-                  <div className="font-semibold">{testimonial.name}</div>
-                  <div className="text-sm text-slate-400">
-                    {testimonial.role} at {testimonial.company}
-                  </div>
-                </div>
+                <audience.icon className="h-6 w-6 text-white" />
               </div>
+
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                {audience.title}
+              </h3>
+              <p className="mt-3 text-base leading-relaxed text-slate-600 dark:text-slate-400">
+                {audience.description}
+              </p>
             </div>
           ))}
         </div>

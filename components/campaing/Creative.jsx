@@ -1,312 +1,213 @@
 "use client";
 
-import React, { useState } from "react";
-
+import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useNavigationProgress } from "@/app/lib/context/NavigationContext";
 import {
-  Image,
-  Share2,
+  Image as ImageIcon,
+  Layers,
   Megaphone,
+  Monitor,
   Package,
-  Layout,
-  Sparkles,
-  Loader2,
-  Download,
+  PackageCheck,
+  Search,
+  X,
 } from "lucide-react";
 
 import GlassCard from "@/components/ui/GlassCard";
+import { cn } from "@/app/lib/utils/utils";
 
-const SECTIONS = [
+const CREATIVE_TYPES = [
   {
-    id: "blog_cover",
-    emoji: "🖼️",
-    label: "Blog Covers",
-    desc: "Eye-catching cover images for blog posts.",
-    prompt: "a professional blog cover image",
+    id: "image_post",
+    label: "Image Post",
+    desc: "Create a single social media image with caption and CTA.",
+    icon: ImageIcon,
+    iconColor: "text-sky-600 dark:text-sky-400",
+    bg: "bg-sky-50 dark:bg-sky-500/10",
   },
   {
-    id: "social",
-    emoji: "📱",
-    label: "Social Media Images",
-    desc: "Branded images for all social platforms.",
-    prompt: "a vibrant social media post image",
+    id: "carousel",
+    label: "Carousel",
+    desc: "Create a multi-slide carousel concept and visual direction.",
+    icon: Layers,
+    iconColor: "text-violet-500 dark:text-violet-400",
+    bg: "bg-violet-50 dark:bg-violet-500/10",
   },
   {
     id: "ad_creative",
-    emoji: "📢",
-    label: "Ad Creatives",
-    desc: "High-converting visual ad creatives.",
-    prompt: "a compelling advertisement creative",
-  },
-  {
-    id: "product",
-    emoji: "📦",
-    label: "Product Mockups",
-    desc: "Professional product mockup visuals.",
-    prompt: "a clean product mockup image",
+    label: "Ad Creative",
+    desc: "Create a conversion-focused ad visual with offer framing.",
+    icon: Megaphone,
+    iconColor: "text-rose-500 dark:text-rose-400",
+    bg: "bg-rose-50 dark:bg-rose-500/10",
   },
   {
     id: "banner",
-    emoji: "🎨",
-    label: "Banners",
-    desc: "Web banners and promotional graphics.",
-    prompt: "a professional marketing banner",
+    label: "Banner",
+    desc: "Create a campaign banner with message hierarchy and CTA.",
+    icon: Monitor,
+    iconColor: "text-emerald-500 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-500/10",
+  },
+  {
+    id: "product_mockup",
+    label: "Product Mockup",
+    desc: "Create a polished product presentation or use-case mockup.",
+    icon: Package,
+    iconColor: "text-amber-500 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-500/10",
+  },
+  {
+    id: "campaign_package",
+    label: "Campaign Package",
+    desc: "Create a complete creative package for the selected campaign.",
+    icon: PackageCheck,
+    iconColor: "text-fuchsia-500 dark:text-fuchsia-400",
+    bg: "bg-fuchsia-50 dark:bg-fuchsia-500/10",
   },
 ];
 
-export default function Creative({ creativeTypes = [] }) {
-  const [images, setImages] = useState({});
-  const [loading, setLoading] = useState({});
+export default function Creative({ campaigns = [] }) {
+  const router = useRouter();
+  const { startNavigation } = useNavigationProgress();
+  const [selectedType, setSelectedType] = useState(null);
+  const [query, setQuery] = useState("");
 
-  const [prompt, setPrompt] = useState("");
-  const [customLoading, setCustomLoading] = useState(false);
-  const [customImage, setCustomImage] = useState(null);
+  const filteredCampaigns = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
 
-  const generateImage = async (sectionId, customPrompt = "") => {
-    if (sectionId === "custom") {
-      setCustomLoading(true);
+    if (!normalizedQuery) return campaigns;
 
-      try {
-        const response = await fetch("/api/creative/generate", {
-          method: "POST",
+    return campaigns.filter((campaign) =>
+      [campaign.name, campaign.product_name, campaign.industry]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery)),
+    );
+  }, [campaigns, query]);
 
-          headers: {
-            "Content-Type": "application/json",
-          },
+  const openWorkspace = (campaignId) => {
+    const task =
+      selectedType?.workspaceTask || selectedType?.id || "image_post";
 
-          body: JSON.stringify({
-            type: "custom",
-            prompt: customPrompt,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error);
-        }
-
-        setCustomImage(`data:image/png;base64,${data.imageData}`);
-      } finally {
-        setCustomLoading(false);
-      }
-
-      return;
-    }
-
-    const section = SECTIONS.find((x) => x.id === sectionId);
-
-    setLoading((prev) => ({
-      ...prev,
-      [sectionId]: true,
-    }));
-
-    try {
-      const response = await fetch("/api/creative/generate", {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          type: sectionId,
-          prompt: section?.prompt || "",
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
-      }
-
-      setImages((prev) => ({
-        ...prev,
-        [sectionId]: `data:image/png;base64,${data.imageData}`,
-      }));
-    } finally {
-      setLoading((prev) => ({
-        ...prev,
-        [sectionId]: false,
-      }));
-    }
+    startNavigation();
+    router.push(
+      `/dashboard/campaings/${campaignId}?tab=creative&creativeTask=${task}`,
+    );
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight dark:text-white text-slate-900">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Creative Studio
           </h2>
 
-          <p className="text-sm mt-1 dark:text-slate-400 text-slate-500">
-            AI-generated visuals for your campaigns
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Choose a creative type, then open it inside a campaign workspace.
           </p>
         </div>
       </div>
 
-      {/* Custom Prompt */}
-
-      <GlassCard className="p-5">
-        <p className="text-sm font-semibold mb-3 dark:text-white text-slate-900">
-          ✨ Generate a Custom Image
-        </p>
-
-        <div className="flex gap-3">
-          <input
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the image you want to generate..."
-            className="
-              flex-1
-              px-4
-              py-2.5
-              rounded-xl
-              text-sm
-              border
-              outline-none
-
-              dark:bg-white/[0.05]
-              dark:border-white/[0.08]
-              dark:text-white
-
-              bg-white
-              border-slate-200
-              text-slate-900
-            "
-          />
-
-          <button
-            onClick={() => prompt.trim() && generateImage("custom", prompt)}
-            disabled={customLoading || !prompt.trim()}
-            className="
-              flex items-center gap-2
-              px-5 py-2.5
-              rounded-xl
-              bg-gradient-to-r
-              from-purple-500
-              to-pink-500
-              text-white
-              text-sm
-              font-medium
-              disabled:opacity-50
-              disabled:cursor-not-allowed
-            "
-          >
-            {customLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            Generate
-          </button>
-        </div>
-
-        {customImage && (
-          <div className="mt-4 relative group rounded-xl overflow-hidden inline-block">
-            <img
-              src={customImage}
-              alt="Custom generated"
-              className="max-h-64 rounded-xl object-contain"
-            />
-
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <a
-                href={customImage}
-                target="_blank"
-                rel="noreferrer"
-                className="
-                  flex items-center gap-1
-                  px-3 py-1.5
-                  rounded-lg
-                  bg-white
-                  text-slate-900
-                  text-xs
-                  font-medium
-                "
-              >
-                <Download className="w-3 h-3" />
-                Download
-              </a>
-            </div>
-          </div>
-        )}
-      </GlassCard>
-
-      {/* Categories */}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {SECTIONS.map((section) => {
-          const image = images[section.id];
-
-          const isLoading = loading[section.id];
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {CREATIVE_TYPES.map((item) => {
+          const Icon = item.icon;
 
           return (
-            <GlassCard key={section.id} className="p-5 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{section.emoji}</span>
-
-                <div>
-                  <p className="text-sm font-semibold dark:text-white text-slate-900">
-                    {section.label}
-                  </p>
-
-                  <p className="text-xs dark:text-slate-500 text-slate-400">
-                    {section.desc}
-                  </p>
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSelectedType(item)}
+              className="group text-left"
+            >
+              <GlassCard className="h-full p-5 transition group-hover:-translate-y-0.5 group-hover:border-[#3B3CFF]/30">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl",
+                    item.bg,
+                  )}
+                >
+                  <Icon className={cn("h-5 w-5", item.iconColor)} />
                 </div>
-              </div>
-
-              {isLoading ? (
-                <div className="h-40 rounded-xl flex flex-col items-center justify-center gap-2 border-2 border-dashed dark:border-white/[0.06] dark:bg-white/[0.02] border-slate-200 bg-slate-50">
-                  <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
-
-                  <p className="text-xs text-slate-400">Generating image...</p>
-                </div>
-              ) : image ? (
-                <div className="relative group rounded-xl overflow-hidden">
-                  <img
-                    src={image}
-                    alt={section.label}
-                    className="w-full h-40 object-cover rounded-xl"
-                  />
-
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <a
-                      href={image}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-900 text-xs font-medium"
-                    >
-                      <Download className="w-3 h-3" />
-                      Download
-                    </a>
-
-                    <button
-                      onClick={() => generateImage(section.id, "")}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-500 text-white text-xs font-medium"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      Regenerate
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-40 rounded-xl flex items-center justify-center border-2 border-dashed dark:border-white/[0.06] dark:bg-white/[0.02] border-slate-200 bg-slate-50">
-                  <button
-                    onClick={() => generateImage(section.id, "")}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-medium"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Generate
-                  </button>
-                </div>
-              )}
-            </GlassCard>
+                <h3 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">
+                  {item.label}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  {item.desc}
+                </p>
+              </GlassCard>
+            </button>
           );
         })}
       </div>
+
+      {selectedType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-dark-surface">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-white/40">
+                  Select Campaign
+                </div>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+                  Open {selectedType.label}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedType(null);
+                  setQuery("");
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 dark:border-white/10 dark:text-white/50 dark:hover:bg-white/[0.06] dark:hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search campaigns..."
+                className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white"
+              />
+            </div>
+
+            <div className="custom-scrollbar mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              {filteredCampaigns.length > 0 ? (
+                filteredCampaigns.map((campaign) => (
+                  <button
+                    key={campaign.id}
+                    type="button"
+                    onClick={() => openWorkspace(campaign.id)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-[#3B3CFF]/40 hover:bg-slate-50 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
+                  >
+                    <div className="font-medium text-slate-900 dark:text-white">
+                      {campaign.name}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-white/45">
+                      {campaign.product_name && (
+                        <span>{campaign.product_name}</span>
+                      )}
+                      {campaign.industry && <span>{campaign.industry}</span>}
+                      {campaign.status && (
+                        <span className="capitalize">{campaign.status}</span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-white/45">
+                  No campaigns found.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

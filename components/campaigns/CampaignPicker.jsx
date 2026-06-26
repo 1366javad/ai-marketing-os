@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useNavigationProgress } from "@/app/lib/context/NavigationContext";
 
 import { Sparkles, FolderKanban, ChevronDown } from "lucide-react";
 
@@ -21,12 +22,14 @@ export default function CampaignPicker({
   className = "",
 }) {
   const router = useRouter();
+  const { startNavigation } = useNavigationProgress();
 
   const handleSelect = (campaign) => {
     const url = type
       ? `/dashboard/campaings/${campaign.id}?tab=${tab.toLowerCase()}&type=${type}`
       : `/dashboard/campaings/${campaign.id}?tab=${tab.toLowerCase()}`;
 
+    startNavigation();
     router.push(url);
   };
 

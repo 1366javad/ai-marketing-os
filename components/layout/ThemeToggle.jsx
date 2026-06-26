@@ -1,16 +1,13 @@
 "use client";
 
-import { useTheme } from "next-themes";
-
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useThemeContext } from "@/app/lib/context/ThemeContext";
 
 export default function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const { setIsDark } = useThemeContext();
+  const { isDark, mounted, setIsDark } = useThemeContext();
+
   function handelToggle() {
-    setTheme(theme === "dark" ? "light" : "dark");
     setIsDark((isDark) => !isDark);
   }
 
@@ -18,14 +15,16 @@ export default function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      className="p-3  rounded-xl hover:scale-105 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
+      className="p-3 rounded-xl hover:scale-105 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
       onClick={handelToggle}
+      disabled={!mounted}
+      aria-label="Toggle theme"
     >
-      <div className="relative w-12">
-        {theme === "dark" ? (
+      <div className="relative h-11 w-12">
+        {!mounted ? null : isDark ? (
           <Sun className="w-11 h-11" />
         ) : (
-          <Moon className="w-11 h-11 " />
+          <Moon className="w-11 h-11" />
         )}
       </div>
     </Button>

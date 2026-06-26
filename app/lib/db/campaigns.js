@@ -58,6 +58,8 @@ export async function createCampaign({ userId, campaign }) {
 
       notes: campaign.notes,
 
+      campaign_plan: campaign.campaign_plan || {},
+
       status: campaign.status || "draft",
     })
     .select()

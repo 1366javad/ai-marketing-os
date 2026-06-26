@@ -1,8 +1,13 @@
-import { getCreativeTypes } from "@/app/lib/db/creative";
+import { getCampaigns } from "@/app/lib/db/campaigns";
+import { createClient } from "@/app/lib/supabase/server";
 import Creative from "@/components/campaing/Creative";
 
 export default async function CreativePage() {
-  const creativeTypes = await getCreativeTypes();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const campaigns = user ? await getCampaigns(user.id) : [];
 
-  return <Creative creativeTypes={creativeTypes} />;
+  return <Creative campaigns={campaigns} />;
 }

@@ -1,140 +1,67 @@
 import Link from "next/link";
 import Logo from "../landing/Logo";
 
+const productLinks = [
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Campaigns", href: "/dashboard/campaings" },
+  { label: "Campaign Starters", href: "/dashboard/templates" },
+  { label: "Features", href: "/#features" },
+];
+
+const legalLinks = [
+  { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
+];
+
 function Footer() {
   return (
-    <footer className="border-t py-12 px-6 border-base">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          {/* brand */}
+    <footer className="border-t border-base px-6 py-12">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
           <div>
-            <div className="flex items-center gap-3 mb-4">
+            <div className="mb-4 flex items-center gap-3">
               <Logo />
             </div>
-            <p className="text-base font-bold text-slate-600">
-              Create, edit, and manage AI-generated marketing with ease.
+            <p className="max-w-sm text-base font-semibold leading-relaxed text-slate-600 dark:text-slate-400">
+              AI Marketing OS helps teams plan, create, and launch campaign
+              assets from one campaign-centric workspace.
             </p>
           </div>
 
-          {/* product */}
           <div>
-            <h4 className="font-semibold mb-4 ">Product</h4>
+            <h4 className="mb-4 font-semibold">Product</h4>
             <ul className="space-y-2">
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm font-bold transition-colors text-slate-600 "
-                >
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm font-bold transition-colors text-slate-600 "
-                >
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm font-bold transition-colors text-slate-600 "
-                >
-                  Templates
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm  font-bold transition-colors text-slate-600"
-                >
-                  Integrations
-                </Link>
-              </li>
+              {productLinks.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm font-semibold text-slate-600 transition-colors hover:text-[#3B3CFF] dark:text-slate-400 dark:hover:text-indigo-300"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* company */}
           <div>
-            <h4 className="font-semibold mb-4 ">Company</h4>
+            <h4 className="mb-4 font-semibold">Legal</h4>
             <ul className="space-y-2">
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  Blog
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  Careers
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* legal */}
-          <div>
-            <h4 className="font-semibold mb-4 ">Legal</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  Security
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm transition-colors text-slate-600 font-bold"
-                >
-                  Cookie Policy
-                </Link>
-              </li>
+              {legalLinks.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm font-semibold text-slate-600 transition-colors hover:text-[#3B3CFF] dark:text-slate-400 dark:hover:text-indigo-300"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
 
-        <div className="pt-8 border-t text-center text-base border-base text-slate-400">
+        <div className="border-t border-base pt-8 text-center text-base text-slate-400">
           © 2026 Marketing OS. All rights reserved.
         </div>
       </div>

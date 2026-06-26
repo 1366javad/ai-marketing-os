@@ -53,7 +53,9 @@ const tabMap = {
 export default function CampaignWorkspace({
   campaign,
   research,
+  researchOutputs,
   seo,
+  seoOutputs,
   contentOutputs,
   creatives,
   videos,
@@ -61,8 +63,6 @@ export default function CampaignWorkspace({
   assets,
   creativeTypes,
   contentTypes,
-  videoTypes,
-  platforms,
 }) {
   const searchParams = useSearchParams();
 
@@ -185,16 +185,40 @@ export default function CampaignWorkspace({
       </div>
 
       <div>
-        {activeTab === "Overview" && <OverviewTab campaign={campaign} />}
-        {activeTab === "Research" && (
-          <ResearchTab campaign={campaign} research={research} />
+        {activeTab === "Overview" && (
+          <OverviewTab
+            campaign={campaign}
+            outputs={{
+              research: researchOutputs,
+              seo: seoOutputs,
+              content: contentOutputs,
+              creative: creatives,
+              video: videos,
+              ads,
+            }}
+          />
         )}
-        {activeTab === "SEO" && <SEOTab campaign={campaign} seo={seo} />}
+        {activeTab === "Research" && (
+          <ResearchTab
+            campaign={campaign}
+            research={research}
+            researchOutputs={researchOutputs}
+          />
+        )}
+        {activeTab === "SEO" && (
+          <SEOTab campaign={campaign} seo={seo} seoOutputs={seoOutputs} />
+        )}
         {activeTab === "Content" && (
           <ContentTab
             campaign={campaign}
             outputs={contentOutputs}
             contentTypes={contentTypes}
+            memorySources={{
+              research: researchOutputs,
+              seo: seoOutputs,
+              content: contentOutputs,
+              creative: creatives,
+            }}
           />
         )}
         {activeTab === "Creative" && (
@@ -205,14 +229,10 @@ export default function CampaignWorkspace({
           />
         )}
         {activeTab === "Video" && (
-          <VideoTab
-            campaign={campaign}
-            videos={videos}
-            videoTypes={videoTypes}
-          />
+          <VideoTab campaign={campaign} videos={videos} />
         )}
         {activeTab === "Ads" && (
-          <AdsTab campaign={campaign} ads={ads} platforms={platforms} />
+          <AdsTab campaign={campaign} ads={ads} />
         )}
         {activeTab === "Assets" && (
           <AssetsTab campaign={campaign} assets={assets} />

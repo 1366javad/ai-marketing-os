@@ -9,16 +9,36 @@ export async function GET(request) {
   if (code) {
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    console.log("CALLBACK ERROR:", error);
+    await supabase.auth.exchangeCodeForSession(code);
 
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
-    console.log("SESSION:", !!session);
+    if (session?.user) {
+      const metadata = session.user.user_metadata || {};
+      const fullName = metadata.full_name || metadata.name || "";
+      const avatarUrl = metadata.avatar_url || metadata.picture || "";
 
-    if (!error) {
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      await supabase
+        .from("profiles")
+        .upsert(
+          {
+            id: session.user.id,
+            email: session.user.email,
+            full_name: existingProfile?.full_name || fullName,
+            avatar_url: existingProfile?.avatar_url || avatarUrl,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" },
+        );
+
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }

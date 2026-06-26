@@ -3,6 +3,7 @@ import SettingsView from "@/components/settings/SettingsView";
 import { getUserSettings } from "@/app/lib/db/settings";
 
 import { createClient } from "@/app/lib/supabase/server";
+import { buildUserProfile } from "@/app/lib/auth/profile";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -12,6 +13,7 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser();
 
   const settings = await getUserSettings(user.id);
+  const profile = buildUserProfile(user, settings);
 
-  return <SettingsView settings={settings} />;
+  return <SettingsView settings={profile} />;
 }

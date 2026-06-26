@@ -1,4 +1,9 @@
 import { createClient } from "@/app/lib/supabase/server";
+import {
+  normalizeUsageEvents,
+  summarizeUsage,
+} from "@/app/lib/usage/aggregateUsage";
+import { PLAN_LIMITS } from "@/app/lib/ai/usage/usagePolicy";
 
 export async function GET() {
   try {
@@ -24,32 +29,34 @@ export async function GET() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    const totalRequests = data.length;
-
-    const totalTokens = data.reduce(
-      (sum, item) => sum + (item.tokens_used || 0),
-      0,
-    );
-
-    const totalCost = data.reduce(
-      (sum, item) => sum + Number(item.cost || 0),
-      0,
-    );
+    const activity = normalizeUsageEvents(data || []);
+    const summary = summarizeUsage(activity);
+    const today = startOfToday();
+    const todayCredits = activity.reduce((sum, event) => {
+      const createdAt = new Date(event.createdAt);
+      if (Number.isNaN(createdAt.getTime()) || createdAt < today) return sum;
+      if (event.status === "failed") return sum;
+      return sum + Number(event.credits || 0);
+    }, 0);
+    const dailyCredits = PLAN_LIMITS.free.dailyCredits;
 
     return Response.json({
       success: true,
-
-      stats: {
-        totalRequests,
-        totalTokens,
-        totalCost,
+      plan: {
+        name: "Free Plan",
+        dailyCredits,
+        todayCredits,
+        remainingCredits: Math.max(0, dailyCredits - todayCredits),
       },
-
-      activity: data,
+      stats: {
+        totalRequests: summary.requests,
+        totalTokens: summary.tokens,
+        totalCredits: summary.credits,
+        totalProviders: summary.providers.size,
+      },
+      activity,
     });
   } catch (error) {
     return Response.json(
@@ -60,4 +67,10 @@ export async function GET() {
       { status: 500 },
     );
   }
+}
+
+function startOfToday() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
 }

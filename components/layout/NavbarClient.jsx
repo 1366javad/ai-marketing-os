@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 import Logo from "../landing/Logo";
 import ThemeToggle from "./ThemeToggle";
@@ -15,33 +14,22 @@ import Profile from "@/components/dashboard/Profile";
 
 const navLink = [
   { name: "Dashboard", href: "/dashboard" },
-  { name: "PrompBuilder", href: "/dashboard/promptbuilder" },
-  { name: "TempeletsLibrary", href: "/dashboard/tempeletslibrary" },
-  { name: "Editor", href: "/dashboard/editor" },
-  { name: "Projects", href: "/dashboard/projects" },
+  { name: "Campaigns", href: "/dashboard/campaings" },
+  { name: "Research", href: "/dashboard/research" },
+  { name: "Campaign Starters", href: "/dashboard/templates" },
+  { name: "Analytics", href: "/dashboard/analytics" },
 ];
 
 function NavbarClient({ user, profile }) {
-  const { isDark } = useThemeContext();
+  const { isDark, mounted } = useThemeContext();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const router = useRouter();
-
-  function handleProtectedLink(href) {
-    if (!user) {
-      router.push("/signin");
-      return;
-    }
-
-    router.push(href);
-  }
 
   return (
     <nav
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
         " border-b border-slate-200/60 backdrop-blur-xl",
-        !isDark && " border-slate-800/60 ",
+        mounted && !isDark && " border-slate-800/60 ",
       )}
     >
       <div className="max-w-8xl mx-auto px-6 py-3">
@@ -54,7 +42,6 @@ function NavbarClient({ user, profile }) {
               <Link
                 key={link.name}
                 href={link.href}
-                // onClick={() => handleProtectedLink(link.href)}
                 className="text-sm md:text-base font-medium hover:text-[#3B3CFF] transition-colors"
               >
                 {link.name}
@@ -69,7 +56,7 @@ function NavbarClient({ user, profile }) {
             {/* Desktop Auth */}
             {user ? (
               <div className="hidden md:flex">
-                <Profile />
+                <Profile initialUser={user} initialProfile={profile} />
               </div>
             ) : (
               <div className="hidden md:flex gap-3">
@@ -114,12 +101,10 @@ function NavbarClient({ user, profile }) {
         >
           <div className="flex flex-col items-end space-y-4">
             {navLink.map((link, index) => (
-              <button
+              <Link
                 key={link.name}
-                onClick={() => {
-                  setMenuOpen(false);
-                  // handleProtectedLink(link.href);
-                }}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
                 className={cn(
                   "text-lg font-medium hover:text-[#3B3CFF] transition-colors transform opacity-0 translate-x-",
                   "animate-slide-in-right",
@@ -127,16 +112,16 @@ function NavbarClient({ user, profile }) {
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
                 {link.name}
-              </button>
+              </Link>
             ))}
           </div>
 
           <div className="flex flex-row justify-end mt-4 gap-4 ">
             {user ? (
-              <Profile />
+              <Profile initialUser={user} initialProfile={profile} />
             ) : (
               <>
-                <Link href="/login">
+                <Link href="/signin">
                   <Button variant="outline" className="rounded-xl ">
                     Login
                   </Button>
