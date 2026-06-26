@@ -8,6 +8,7 @@ export default function ThemeToggle() {
   const { isDark, mounted, setIsDark } = useThemeContext();
 
   function handelToggle() {
+    if (!mounted) return;
     setIsDark((isDark) => !isDark);
   }
 
@@ -17,11 +18,12 @@ export default function ThemeToggle() {
       size="icon"
       className="p-3 rounded-xl hover:scale-105 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
       onClick={handelToggle}
-      disabled={!mounted}
       aria-label="Toggle theme"
     >
-      <div className="relative h-11 w-12">
-        {!mounted ? null : isDark ? (
+      <div className="relative h-4 w-12">
+        {!mounted ? (
+          <span className="block h-11 w-11" aria-hidden="true" />
+        ) : isDark ? (
           <Sun className="w-11 h-11" />
         ) : (
           <Moon className="w-11 h-11" />

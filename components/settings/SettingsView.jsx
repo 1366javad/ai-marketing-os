@@ -5,15 +5,14 @@ import {
   BadgeCheck,
   CreditCard,
   Info,
-  Moon,
   ShieldCheck,
-  Sun,
+  SunMoon,
   UserRound,
 } from "lucide-react";
 import { useThemeContext } from "@/app/lib/context/ThemeContext";
 
 function SettingsView({ settings }) {
-  const { isDark, mounted, setIsDark } = useThemeContext();
+  const { isDark, setIsDark } = useThemeContext();
 
   return (
     <main className="flex-1 p-6">
@@ -43,7 +42,7 @@ function SettingsView({ settings }) {
           </AccountSection>
 
           <AccountSection
-            icon={isDark ? Moon : Sun}
+            icon={SunMoon}
             title="Appearance"
             description="This is a local interface preference and does not affect AI generation."
           >
@@ -54,7 +53,6 @@ function SettingsView({ settings }) {
               <select
                 value={isDark ? "dark" : "light"}
                 onChange={(event) => setIsDark(event.target.value === "dark")}
-                disabled={!mounted}
                 className="w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               >
                 <option value="light">Light Mode</option>

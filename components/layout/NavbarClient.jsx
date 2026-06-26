@@ -7,7 +7,6 @@ import { useState } from "react";
 
 import Logo from "../landing/Logo";
 import ThemeToggle from "./ThemeToggle";
-import { useThemeContext } from "@/app/lib/context/ThemeContext";
 import { cn } from "@/app/lib/utils/utils";
 
 import Profile from "@/components/dashboard/Profile";
@@ -21,15 +20,13 @@ const navLink = [
 ];
 
 function NavbarClient({ user, profile }) {
-  const { isDark, mounted } = useThemeContext();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <nav
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        " border-b border-slate-200/60 backdrop-blur-xl",
-        mounted && !isDark && " border-slate-800/60 ",
+        "border-b border-slate-200/60 backdrop-blur-xl dark:border-white/10",
       )}
     >
       <div className="max-w-8xl mx-auto px-6 py-3">

@@ -104,12 +104,8 @@ export default function OverviewTab({ campaign, outputs = {} }) {
       <section>
         <SectionTitle icon={Layers3} title="Campaign Profile" />
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {PROFILE_ITEMS.map((item) => (
-            <ProfileItem
-              key={item.key}
-              {...item}
-              value={profile[item.key]}
-            />
+          {PROFILE_ITEMS.map(({ key, ...item }) => (
+            <ProfileItem key={key} {...item} value={profile[key]} />
           ))}
         </div>
       </section>

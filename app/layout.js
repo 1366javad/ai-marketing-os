@@ -1,4 +1,3 @@
-import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import Providers from "@/app/providers";
 import { ThemeProvider } from "@/app/lib/context/ThemeProvider";
@@ -9,11 +8,6 @@ import { UserProfileProvider } from "@/app/lib/context/UserProfileContext";
 import { Toaster } from "@/components/ui/toaster";
 import { Suspense } from "react";
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  display: "swap",
-});
-
 export const metadata = {
   title: "AI Marketing OS",
   description: "AI Powered Marketing Command Center",
@@ -22,7 +16,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className="custom-scrollbar">
-      <body className={`custom-scrollbar ${dmSans.className}`}>
+      <body className="custom-scrollbar">
         <ThemeProvider>
           <Providers>
             <ThemeContextProvider>

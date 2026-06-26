@@ -79,22 +79,29 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
     }
     setSaving(true);
     setError("");
-    const response = await fetch("/api/campaigns", {
-      method: "POST",
+    try {
+      const response = await fetch("/api/campaigns", {
+        method: "POST",
 
-      headers: {
-        "Content-Type": "application/json",
-      },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-      body: JSON.stringify(form),
-    });
+        body: JSON.stringify(form),
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to create campaign");
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to create campaign");
+      }
+
+      onCreated();
+    } catch (error) {
+      setError(error?.message || "Failed to create campaign");
+    } finally {
+      setSaving(false);
     }
-
-    await response.json();
-    onCreated();
   };
 
   const inputClass =
@@ -197,7 +204,7 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
             disabled={saving}
             className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF] text-white text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all disabled:opacity-50"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "🚀"}
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {saving ? "Creating..." : "Create Campaign"}
           </button>
         </div>

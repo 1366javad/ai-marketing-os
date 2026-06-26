@@ -1,21 +1,19 @@
 "use client";
 
-import { createContext, useContext, useMemo, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 
 const ThemeContext = createContext();
 
 function ThemeContextProvider({ children }) {
   const { resolvedTheme, setTheme } = useTheme();
-  const mounted = useSyncExternalStore(
-    (onStoreChange) => {
-      const timeoutId = window.setTimeout(onStoreChange, 0);
-      return () => window.clearTimeout(timeoutId);
-    },
-    () => true,
-    () => false,
-  );
+  const [mounted, setMounted] = useState(false);
   const isDark = resolvedTheme === "dark";
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const value = useMemo(
     () => ({

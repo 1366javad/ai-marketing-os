@@ -66,13 +66,13 @@ const { buildExecutionPlan } = require("./buildExecutionPlan");
 function runOrchestrator(brief, campaignLookup = null) {
   const { mode, fallbackReason } = detectMode(brief, campaignLookup);
 
-  const module = resolveModule(brief);
+  const requestedModule = resolveModule(brief);
   const task = resolveTask(brief);
-  const { riskLevel, needsApproval } = resolveRiskGate(module);
+  const { riskLevel, needsApproval } = resolveRiskGate(requestedModule);
 
   const plan = buildExecutionPlan({
     mode,
-    module,
+    module: requestedModule,
     task,
     riskLevel,
     needsApproval,
