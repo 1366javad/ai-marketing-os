@@ -1,13 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useThemeContext } from "@/app/lib/context/ThemeContext";
 
 export default function ThemeToggle() {
-  const { isDark, mounted, setIsDark } = useThemeContext();
+  const { isDark, setIsDark } = useThemeContext();
+  const [mounted, setMounted] = useState(false);
 
-  function handelToggle() {
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  function handleToggle() {
     if (!mounted) return;
     setIsDark((isDark) => !isDark);
   }
@@ -17,7 +24,7 @@ export default function ThemeToggle() {
       variant="ghost"
       size="icon"
       className="p-3 rounded-xl hover:scale-105 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
-      onClick={handelToggle}
+      onClick={handleToggle}
       aria-label="Toggle theme"
     >
       <div className="relative h-4 w-12">

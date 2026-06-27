@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import { signInWithEmail, signInWithGoogle } from "@/app/actions/auth";
 import {
   Sparkles,
@@ -16,13 +17,12 @@ import Link from "next/link";
 import ThemeToggle from "../layout/ThemeToggle";
 function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [googlePending, setGooglePending] = useState(false);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (isPending || googlePending) return;
+    if (isPending) return;
 
     const formData = new FormData(e.currentTarget);
 
@@ -68,25 +68,9 @@ function SignInForm() {
 
       {/* Google Sign-in */}
       <form action={signInWithGoogle}>
-        <button
-          type="submit"
-          disabled={googlePending || isPending}
-          onClick={() => setGooglePending(true)}
-          className={`
-              w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border font-medium text-sm
-              transition-all duration-200 mb-6 bg-white border-slate-200 text-slate-700
-              hover:bg-slate-50 shadow-sm
-              dark:bg-gray-800 dark:border-gray-700 dark:text-slate-300 dark:hover:bg-gray-700
-              disabled:cursor-not-allowed disabled:opacity-70
-            `}
-        >
-          {googlePending ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <GoogleIcon />
-          )}
-          {googlePending ? "Redirecting..." : "Continue with Google"}
-        </button>
+        <GoogleSubmitButton disabled={isPending}>
+          Continue with Google
+        </GoogleSubmitButton>
       </form>
       {/* Divider */}
       <div className="flex items-center gap-3 mb-6">
@@ -109,7 +93,7 @@ function SignInForm() {
             <input
               type="email"
               name="email"
-              disabled={isPending || googlePending}
+              disabled={isPending}
               placeholder="you@example.com"
               required
               className={`
@@ -144,7 +128,7 @@ function SignInForm() {
               type={showPassword ? "text" : "password"}
               placeholder="********"
               required
-              disabled={isPending || googlePending}
+              disabled={isPending}
               className={`
                     w-full pl-10 pr-11 py-3 rounded-xl border text-sm outline-none transition-all duration-200
                     bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400
@@ -155,7 +139,7 @@ function SignInForm() {
             />
             <button
               type="button"
-              disabled={isPending || googlePending}
+              disabled={isPending}
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
             >
@@ -171,7 +155,7 @@ function SignInForm() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isPending || googlePending}
+          disabled={isPending}
           className={`
                 group w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF]
                 text-white font-semibold text-sm mt-2
@@ -204,6 +188,28 @@ function SignInForm() {
         © 2026 AI Content Studio
       </p>
     </div>
+  );
+}
+
+function GoogleSubmitButton({ children, disabled = false }) {
+  const { pending } = useFormStatus();
+  const isDisabled = disabled || pending;
+
+  return (
+    <button
+      type="submit"
+      disabled={isDisabled}
+      className={`
+        w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border font-medium text-sm
+        transition-all duration-200 mb-6 bg-white border-slate-200 text-slate-700
+        hover:bg-slate-50 shadow-sm
+        dark:bg-gray-800 dark:border-gray-700 dark:text-slate-300 dark:hover:bg-gray-700
+        disabled:cursor-not-allowed disabled:opacity-70
+      `}
+    >
+      {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
+      {pending ? "Redirecting..." : children}
+    </button>
   );
 }
 

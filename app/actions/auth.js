@@ -13,13 +13,19 @@ export async function signInWithGoogle() {
     provider: "google",
 
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
+      redirectTo: `${getBaseUrl()}/auth/callback`,
     },
   });
 
   if (error) {
     return {
       error: formatAuthError(error.message),
+    };
+  }
+
+  if (!data?.url) {
+    return {
+      error: "Google sign in could not be started. Please try again.",
     };
   }
 
@@ -63,7 +69,7 @@ export async function signUpWithEmail(formData) {
         full_name: fullName,
       },
 
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
+      emailRedirectTo: `${getBaseUrl()}/auth/callback`,
     },
   });
 
@@ -121,7 +127,7 @@ export async function sendResetPasswordEmail(formData) {
   const email = formData.get("email");
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/update-password`,
+    redirectTo: `${getBaseUrl()}/auth/update-password`,
   });
 
   if (error) {
@@ -207,4 +213,14 @@ function formatAuthError(message = "") {
   }
 
   return "Something went wrong. Please try again.";
+}
+
+function getBaseUrl() {
+  const url =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.URL ||
+    "http://localhost:3000";
+
+  return String(url).replace(/\/$/, "");
 }
