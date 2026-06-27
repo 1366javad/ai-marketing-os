@@ -118,38 +118,92 @@ async function callGemini({
   }
 
   const model = getGeminiModel();
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const safeUrl = url.replace(apiKey, "[REDACTED_GEMINI_API_KEY]");
+  const options = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `
 SYSTEM:
 ${systemPrompt}
 
 USER:
 ${userPrompt}
                 `,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature,
-          maxOutputTokens: maxTokens,
+            },
+          ],
         },
-      }),
-    },
-  );
+      ],
+      generationConfig: {
+        temperature,
+        maxOutputTokens: maxTokens,
+      },
+    }),
+  };
+
+  console.log("CALL_GEMINI_CONNECTIVITY_1 before root fetch");
+  try {
+    const connectivityController = new AbortController();
+    const connectivityTimeout = setTimeout(() => {
+      connectivityController.abort();
+    }, 10000);
+
+    try {
+      const connectivityResponse = await fetch(
+        "https://generativelanguage.googleapis.com",
+        {
+          signal: connectivityController.signal,
+        },
+      );
+      console.log(
+        "CALL_GEMINI_CONNECTIVITY_2 root fetch finished",
+        connectivityResponse.status,
+      );
+    } finally {
+      clearTimeout(connectivityTimeout);
+    }
+  } catch (connectivityError) {
+    console.error("CALL_GEMINI_CONNECTIVITY_3 root fetch failed", {
+      name: connectivityError?.name,
+      message: connectivityError?.message,
+      stack: connectivityError?.stack,
+    });
+  }
+
+  console.log("CALL_GEMINI_1 entering");
+  console.log("CALL_GEMINI_2 URL", safeUrl);
+  console.log("CALL_GEMINI_3 before fetch");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10000);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    console.log("CALL_GEMINI_4 after fetch", response.status);
+  } catch (error) {
+    console.error("CALL_GEMINI_FETCH_FAILED", {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
