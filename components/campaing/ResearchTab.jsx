@@ -237,6 +237,22 @@ function normalizeGeneratedOutput(data, sectionId) {
   };
 }
 
+function formatCreditLimitMessage(data) {
+  if (data?.error !== "credit_limit_reached") return "";
+
+  const requiredCredits = Number(data.requiredCredits || 0);
+  const remainingCredits = Number(data.remainingCredits || 0);
+
+  if (requiredCredits > 0) {
+    return `You need ${requiredCredits} credits, but you have ${remainingCredits} left today. Come back tomorrow or upgrade to Pro.`;
+  }
+
+  return (
+    data.message ||
+    "You've used today's free credits. Come back tomorrow or upgrade to Pro."
+  );
+}
+
 function getOutputStatus(output) {
   const status = String(output?.approval_status || "auto_saved").toLowerCase();
   const date = formatRelativeDate(output?.created_at);
@@ -478,7 +494,9 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || data.error);
+        const error = new Error(data.message || data.error);
+        error.responseData = data;
+        throw error;
       }
 
       setLoading((prev) => ({
@@ -502,9 +520,11 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
       ]);
       router.refresh();
     } catch (error) {
+      const creditLimitMessage = formatCreditLimitMessage(error.responseData);
+
       setErrors((prev) => ({
         ...prev,
-        [sectionId]: getAiErrorMessage(error),
+        [sectionId]: creditLimitMessage || getAiErrorMessage(error),
       }));
     } finally {
       setLoading((prev) => ({

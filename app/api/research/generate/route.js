@@ -147,6 +147,7 @@ export async function POST(request) {
       creditCheck = await checkCreditLimit({
         supabase,
         userId: user.id,
+        userEmail: user.email,
         module: executionPlan.module,
         artifact: executionPlan.task,
       });
@@ -161,6 +162,14 @@ export async function POST(request) {
       });
       return createCreditLimitResponse(creditCheck);
     }
+    if (creditCheck.internalBypass) {
+      log("Credit gate bypassed for internal/test request.", {
+        reason: creditCheck.internalBypassReason,
+        userEmail: user.email || null,
+        remainingCredits: creditCheck.remainingCredits,
+        requiredCredits: creditCheck.requiredCredits,
+      });
+    }
 
     try {
       usage = await startUsageEvent({
@@ -171,12 +180,14 @@ export async function POST(request) {
         module: executionPlan.module,
         artifact: executionPlan.task,
         requestType: "generation",
-        creditsUsed: creditCheck.requiredCredits,
-        source: "agent_v2",
+        creditsUsed: creditCheck.billableCredits,
+        source: creditCheck.internalBypass ? "internal_test" : "agent_v2",
         metadata: {
           operationId,
           campaignName: campaign?.name || "",
           promptPreview: guard.normalizedPrompt?.slice(0, 240) || "",
+          internalCreditBypass: Boolean(creditCheck.internalBypass),
+          internalCreditBypassReason: creditCheck.internalBypassReason,
         },
       });
     } catch (error) {
@@ -377,12 +388,14 @@ export async function POST(request) {
         provider: researchOutput.metadata?.provider,
         model: researchOutput.metadata?.model,
         status: "completed",
-        creditsUsed: creditCheck.requiredCredits,
+        creditsUsed: creditCheck.billableCredits,
         cost: researchOutput.metadata?.cost || 0,
         metadata: {
           ...researchOutput.metadata,
           memorySaved: Boolean(memoryWrite.memory),
           outputId: memoryWrite.output?.id || null,
+          internalCreditBypass: Boolean(creditCheck.internalBypass),
+          internalCreditBypassReason: creditCheck.internalBypassReason,
         },
       });
     } catch (error) {

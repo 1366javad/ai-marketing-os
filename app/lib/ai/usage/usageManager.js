@@ -4,6 +4,8 @@ import {
   getPlanLimits,
 } from "./usagePolicy";
 
+const INTERNAL_TEST_USERS = ["javad.janjani1366@gmail.com"];
+
 export async function resolveUserPlan() {
   return "free";
 }
@@ -45,20 +47,36 @@ export function getCreditCost({ module }) {
   return getModuleCreditCost(module);
 }
 
-export async function checkCreditLimit({ supabase, userId, module, artifact }) {
+export async function checkCreditLimit({
+  supabase,
+  userId,
+  userEmail,
+  module,
+  artifact,
+}) {
   const plan = await resolveUserPlan(userId);
   const limits = getPlanLimits(plan);
   const requiredCredits = getCreditCost({ module, artifact });
   const usage = await getDailyUsage({ supabase, userId });
   const remainingCredits = Math.max(0, limits.dailyCredits - usage.creditsUsed);
+  const internalTester = isInternalTester(userEmail);
+  const nonProductionBypass = isCreditBypassEnvironment();
+  const internalBypass = internalTester || nonProductionBypass;
 
   return {
-    allowed: remainingCredits >= requiredCredits,
+    allowed: internalBypass || remainingCredits >= requiredCredits,
+    internalBypass,
+    internalBypassReason: internalTester
+      ? "internal_tester"
+      : nonProductionBypass
+        ? "non_production"
+        : "",
     plan,
     dailyCredits: limits.dailyCredits,
     usedCredits: usage.creditsUsed,
     remainingCredits,
     requiredCredits,
+    billableCredits: internalBypass ? 0 : requiredCredits,
     message: CREDIT_LIMIT_MESSAGE,
   };
 }
@@ -215,7 +233,7 @@ export function createCreditLimitResponse(creditCheck) {
   return Response.json(
     {
       error: "credit_limit_reached",
-      message: CREDIT_LIMIT_MESSAGE,
+      message: `You need ${creditCheck.requiredCredits} credits, but you have ${creditCheck.remainingCredits} left today. Come back tomorrow or upgrade to Pro.`,
       remainingCredits: creditCheck.remainingCredits,
       requiredCredits: creditCheck.requiredCredits,
       dailyCredits: creditCheck.dailyCredits,
@@ -224,6 +242,25 @@ export function createCreditLimitResponse(creditCheck) {
     },
     { status: 402 },
   );
+}
+
+function isInternalTester(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  return INTERNAL_TEST_USERS.includes(normalizedEmail);
+}
+
+function isCreditBypassEnvironment() {
+  const env = String(process.env.NODE_ENV || "").trim().toLowerCase();
+  const appEnv = String(
+    process.env.APP_ENV ||
+      process.env.NEXT_PUBLIC_APP_ENV ||
+      process.env.CONTEXT ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  return ["development", "staging"].includes(env) || appEnv === "staging";
 }
 
 async function findUsageByOperationId({ supabase, userId, operationId }) {

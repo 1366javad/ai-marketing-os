@@ -75,6 +75,7 @@ export async function POST(request) {
     const creditCheck = await checkCreditLimit({
       supabase,
       userId: user.id,
+      userEmail: user.email,
       module: executionPlan.module,
       artifact: executionPlan.task,
     });
@@ -91,12 +92,14 @@ export async function POST(request) {
       module: executionPlan.module,
       artifact: executionPlan.task,
       requestType: "generation",
-      creditsUsed: creditCheck.requiredCredits,
-      source: "agent_v2",
+      creditsUsed: creditCheck.billableCredits,
+      source: creditCheck.internalBypass ? "internal_test" : "agent_v2",
       metadata: {
         operationId,
         campaignName: campaign?.name || "",
         promptPreview: guard.normalizedPrompt?.slice(0, 240) || "",
+        internalCreditBypass: Boolean(creditCheck.internalBypass),
+        internalCreditBypassReason: creditCheck.internalBypassReason,
       },
     });
 
@@ -202,7 +205,7 @@ export async function POST(request) {
       provider: creativeOutput.asset?.provider || creativeOutput.metadata?.provider,
       model: creativeOutput.asset?.model || creativeOutput.metadata?.model,
       status: "completed",
-      creditsUsed: creditCheck.requiredCredits,
+      creditsUsed: creditCheck.billableCredits,
       cost: creativeOutput.metadata?.cost || 0,
       metadata: {
         ...creativeOutput.metadata,
@@ -217,6 +220,8 @@ export async function POST(request) {
         assetProvider: creativeOutput.asset?.provider || null,
         assetModel: creativeOutput.asset?.model || null,
         providerReportedTokens: false,
+        internalCreditBypass: Boolean(creditCheck.internalBypass),
+        internalCreditBypassReason: creditCheck.internalBypassReason,
       },
     });
 
