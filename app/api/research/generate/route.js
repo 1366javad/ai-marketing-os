@@ -308,6 +308,12 @@ export async function POST(request) {
         logError("STEP 16 Quality Layer failed.", error);
         throw error;
       }
+      console.log("Research quality repair result:", {
+        provider: researchOutput.metadata?.provider,
+        passed: quality.passed,
+        issues: quality.issues,
+        counts: summarizeResearchCounts(researchOutput),
+      });
     }
 
     if (!quality.passed) {

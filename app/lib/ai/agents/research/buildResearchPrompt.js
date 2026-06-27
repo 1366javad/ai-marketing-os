@@ -130,6 +130,11 @@ function buildResearchPrompt({ brief, executionPlan }) {
     "- Do not fabricate statistics, pricing, or competitor details not present in the brief.",
     "- Use cautious language for inferences: 'likely', 'suggests', 'based on the context'.",
     "- If context is limited, state what is unknown and why it matters.",
+    "- You must return a single JSON object and nothing else.",
+    "- Do not wrap the JSON in markdown fences.",
+    "- Do not return prose before or after the JSON.",
+    "- Arrays must be populated. Empty arrays fail the contract.",
+    "- recommendations, risks, and nextActions must use the exact object keys shown below.",
     "",
     "Return only valid JSON with this exact shape:",
     JSON.stringify({
@@ -181,6 +186,9 @@ function buildResearchPrompt({ brief, executionPlan }) {
     "  Prioritize by impact, not by effort.",
     "- do not write ad copy, SEO copy, or content drafts.",
     "- do not include insights that apply to any business in any market.",
+    "",
+    "Return JSON only. The response must start with { and end with }.",
+    "Do not include markdown, commentary, code fences, or explanations.",
   ].join("\n");
 
   return { systemPrompt, userPrompt };

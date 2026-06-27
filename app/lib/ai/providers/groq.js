@@ -3,6 +3,7 @@ async function runGroq({
   userPrompt,
   temperature = 0.7,
   maxTokens = 1200,
+  responseFormat,
 }) {
   const startedAt = Date.now();
   const apiKey = process.env.GROQ_API_KEY;
@@ -12,14 +13,14 @@ async function runGroq({
   }
 
   const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10000);
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  let response;
+  try {
+    const requestBody = {
       model,
       temperature,
       max_tokens: maxTokens,
@@ -33,8 +34,31 @@ async function runGroq({
           content: userPrompt || "",
         },
       ],
-    }),
-  });
+    };
+
+    if (responseFormat) {
+      requestBody.response_format = { type: responseFormat };
+    }
+
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify(requestBody),
+    });
+  } catch (error) {
+    console.error("GROQ_FETCH_FAILED", {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const data = await response.json();
 

@@ -40,13 +40,30 @@ async function runPollinationsImage({
     height,
     seed,
   });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10000);
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "image/*",
-    },
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "image/*",
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    console.error("POLLINATIONS_IMAGE_FETCH_FAILED", {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const error = new Error(
@@ -76,6 +93,7 @@ async function runPollinationsText({
   model = "openai",
   temperature = 0.7,
   maxTokens = 1200,
+  responseFormat,
 }) {
   const startedAt = Date.now();
   const apiKey = process.env.POLLINATIONS_API_KEY;
@@ -83,14 +101,14 @@ async function runPollinationsText({
   if (!apiKey) {
     throw new Error("Missing POLLINATIONS_API_KEY");
   }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10000);
 
-  const response = await fetch(POLLINATIONS_CHAT_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  let response;
+  try {
+    const requestBody = {
       model,
       temperature,
       max_tokens: maxTokens,
@@ -104,8 +122,31 @@ async function runPollinationsText({
           content: userPrompt || "",
         },
       ],
-    }),
-  });
+    };
+
+    if (responseFormat) {
+      requestBody.response_format = { type: responseFormat };
+    }
+
+    response = await fetch(POLLINATIONS_CHAT_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify(requestBody),
+    });
+  } catch (error) {
+    console.error("POLLINATIONS_TEXT_FETCH_FAILED", {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const data = await response.json();
 

@@ -1,4 +1,4 @@
-const { runProvider, runTextProvider } = require("../../providers");
+const { runProvider } = require("../../providers");
 const {
   buildResearchPrompt,
   buildResearchRepairPrompt,
@@ -21,14 +21,33 @@ async function runResearchAgent({ brief, executionPlan }) {
     executionPlan,
   });
 
-  const providerResult = await runTextProvider({
+  const providerResult = await runResearchTextProvider({
     systemPrompt,
     userPrompt,
     temperature: 0.45,
     maxTokens: 2400,
+    responseFormat: "json_object",
   });
 
   return normalizeResearchOutput(providerResult, { brief, executionPlan });
+}
+
+async function runResearchTextProvider(payload) {
+  try {
+    return await runProvider("groq", payload);
+  } catch (groqError) {
+    console.warn(
+      `Research Groq failed (${summarizeProviderError(groqError)}). Falling back to Pollinations Text.`,
+    );
+
+    const pollinationsResult = await runProvider("pollinations", payload);
+
+    return {
+      ...pollinationsResult,
+      warning: "Low Confidence Provider",
+      lowConfidenceProvider: true,
+    };
+  }
 }
 
 async function repairResearchOutput({
@@ -105,6 +124,15 @@ function formatResearchMarkdown(researchOutput) {
   ];
 
   return sections.join("\n");
+}
+
+function summarizeProviderError(error) {
+  const status = error?.status ? `status ${error.status}` : "no status";
+  const message = String(error?.message || "unknown error")
+    .replace(/\s+/g, " ")
+    .slice(0, 220);
+
+  return `${status}: ${message}`;
 }
 
 module.exports = {
