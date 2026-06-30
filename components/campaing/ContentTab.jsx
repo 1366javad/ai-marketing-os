@@ -27,10 +27,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
-import {
-  getActionGate,
-  getFeatureGate,
-} from "@/app/lib/plans/planPolicy";
+import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
 
 const CONTENT_TYPES = [
   {
@@ -292,7 +289,10 @@ export default function ContentTab({
         return;
       }
 
-      const existingOutput = findLatestOutputForType(localOutputs, selectedType);
+      const existingOutput = findLatestOutputForType(
+        localOutputs,
+        selectedType,
+      );
 
       if (existingOutput) {
         const regenerateGate = getActionGate({ plan, action: "regenerate" });
@@ -411,7 +411,7 @@ export default function ContentTab({
         <p className="text-xs font-medium text-gray-500 mb-3">
           Select Content Type
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid  gap-2 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {CONTENT_TYPES.map((type) => {
             const Icon = type.icon;
             const active = selectedType === type.id;
@@ -425,7 +425,7 @@ export default function ContentTab({
                 key={type.id}
                 onClick={() => selectContentType(type.id)}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all border",
+                  "flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium transition-all",
                   active
                     ? "border-[#3B3CFF]/30 bg-[#3B3CFF]/10 text-[#3B3CFF] dark:bg-[#3B3CFF]/20 dark:text-indigo-400"
                     : cn(
@@ -435,7 +435,7 @@ export default function ContentTab({
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {type.label}
+                <span className="min-w-0 flex-1 truncate">{type.label}</span>
                 {!gate.allowed && (
                   <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
                 )}
@@ -648,10 +648,7 @@ export default function ContentTab({
           })}
         </div>
       </section>
-      <UpgradeModal
-        gate={upgradeGate}
-        onClose={() => setUpgradeGate(null)}
-      />
+      <UpgradeModal gate={upgradeGate} onClose={() => setUpgradeGate(null)} />
     </div>
   );
 }

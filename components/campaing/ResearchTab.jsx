@@ -26,10 +26,7 @@ import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import MemoryApprovalButton from "@/components/memory/MemoryApprovalButton";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
-import {
-  getActionGate,
-  getFeatureGate,
-} from "@/app/lib/plans/planPolicy";
+import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
 
 const sections = [
   {
@@ -442,8 +439,7 @@ export default function ResearchTab({
 
     setLocalOutputs((current) =>
       current.map((output) =>
-        output.id === event.id &&
-        output.source === "campaign_memory_events"
+        output.id === event.id && output.source === "campaign_memory_events"
           ? {
               ...output,
               approval_status: "approved",
@@ -620,7 +616,7 @@ export default function ResearchTab({
     <div className="space-y-6 bg-slate-50 text-slate-900 dark:bg-dark-bg dark:text-white/90">
       {/* Research Task Selector */}
       <section className="mt-5">
-        <div className="mb-2 flex items-center justify-between text-xs">
+        <div className="mb-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
           <span className="uppercase tracking-[0.18em] text-slate-500 dark:text-white/40">
             Research Task
           </span>
@@ -629,7 +625,7 @@ export default function ResearchTab({
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none">
+        <div className="grid gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-3">
           {sections.map((section) => {
             const Icon = section.icon;
             const isActive = selectedSection === section.id;
@@ -653,12 +649,12 @@ export default function ResearchTab({
                 }}
                 className={
                   isActive
-                    ? "group relative inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
-                    : "group relative inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-slate-600 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    ? "group relative inline-flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
+                    : "group relative inline-flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white"
                 }
               >
                 <Icon className={`h-4 w-4 ${section.iconColor}`} />
-                <span>{section.label}</span>
+                <span className="min-w-0 flex-1 truncate">{section.label}</span>
                 {!gate.allowed ? (
                   <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
                 ) : (
@@ -715,8 +711,8 @@ export default function ResearchTab({
                   className={`h-1.5 w-1.5 rounded-full ${
                     activeReport
                       ? String(
-                            activeMemoryOutput?.approval_status || "",
-                          ).toLowerCase() === "approved"
+                          activeMemoryOutput?.approval_status || "",
+                        ).toLowerCase() === "approved"
                         ? "bg-emerald-500/80"
                         : "bg-amber-500/80"
                       : "bg-slate-300 dark:bg-white/15"
@@ -1084,10 +1080,7 @@ export default function ResearchTab({
           })}
         </div>
       </section>
-      <UpgradeModal
-        gate={upgradeGate}
-        onClose={() => setUpgradeGate(null)}
-      />
+      <UpgradeModal gate={upgradeGate} onClose={() => setUpgradeGate(null)} />
     </div>
   );
 }

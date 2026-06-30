@@ -4,15 +4,15 @@ import Filtrs from "../templates/Filtest";
 
 function QuickCreate({ onClose }) {
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 p-3 sm:p-6">
       <div className="border rounded-lg border-base mb-2 max-w-20 px-2 py-1 text-base">
         <button onClick={onClose}>&larr; Back</button>
       </div>
-      <div className="max-w-7xl mx-auto">
+      <div className="mx-auto max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
             {/* Content Settings */}
-            <div className="rounded-2xl border transition-all duration-200 border-base shadow-lg  dark:hover:bg-gray-800/30 hover:bg-white hover:border-slate-400/60 hover:shadow-xl backdrop-blur-xl p-6 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-base p-4 shadow-lg backdrop-blur-xl transition-all duration-200 hover:bg-white hover:border-slate-400/60 hover:shadow-xl dark:hover:bg-gray-800/30 sm:p-6">
               <h3 className="font-semibold text-sm md:text-lg flex items-center gap-2 ">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -41,7 +41,7 @@ function QuickCreate({ onClose }) {
                 defaultValue=""
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Filtrs
                   options={[
                     " English",
@@ -78,7 +78,7 @@ function QuickCreate({ onClose }) {
             </div>
 
             {/* Prompt */}
-            <div className="rounded-2xl border transition-all duration-200 border-base shadow-lg dark:hover:bg-gray-800/30 hover:border-slate-400/60 hover:shadow-xl backdrop-blur-xl p-6 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-base p-4 shadow-lg backdrop-blur-xl transition-all duration-200 hover:border-slate-400/60 hover:shadow-xl dark:hover:bg-gray-800/30 sm:p-6">
               <h3 className="font-semibold text-sm md:text- lg flex items-center gap-2 ">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -138,7 +138,7 @@ function QuickCreate({ onClose }) {
 
           {/* Output Preview */}
           <div>
-            <div className="rounded-2xl border transition-all duration-200 border-base shadow-lg /50 dark:hover:bg-gray-800/30 hover:border-slate-400/60 hover:shadow-xl backdrop-blur-xl p-6 min-h-[500px] flex flex-col">
+            <div className="flex min-h-[420px] flex-col rounded-2xl border border-base p-4 shadow-lg backdrop-blur-xl transition-all duration-200 hover:border-slate-400/60 hover:shadow-xl dark:hover:bg-gray-800/30 sm:min-h-[500px] sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-sm flex items-center gap-2 text-slate-900">
                   Output Preview
@@ -182,7 +182,7 @@ function QuickCreate({ onClose }) {
         </div>
 
         {/* Floating Action Button */}
-        <button className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] text-white flex items-center justify-center shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all duration-200">
+        <button className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] text-white shadow-2xl shadow-indigo-500/30 transition-all duration-200 hover:scale-105 hover:shadow-indigo-500/50 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"

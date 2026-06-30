@@ -296,7 +296,7 @@ export default function AssetsTab({ campaign, assets = [] }) {
           ].map((source) => (
             <span
               key={source}
-              className="rounded-md border border-slate-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-white/[0.03]"
+              className="break-all rounded-md border border-slate-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-white/[0.03]"
             >
               {source}
             </span>
@@ -346,8 +346,8 @@ function AssetCard({
   const Icon = moduleUi.icon;
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.025] dark:shadow-none">
-      <div className="flex items-start gap-3">
+    <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.025] dark:shadow-none sm:p-4">
+      <div className="flex min-w-0 items-start gap-3">
         <div
           className={cn(
             "flex h-9 w-9 flex-none items-center justify-center rounded-lg",
@@ -358,9 +358,9 @@ function AssetCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+              <h3 className="break-words text-sm font-semibold text-slate-900 dark:text-white sm:truncate">
                 {asset.title}
               </h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-white/40">
@@ -369,7 +369,7 @@ function AssetCard({
                 <span>{formatOutputType(asset.outputType)}</span>
               </div>
             </div>
-            <div className="flex flex-none items-start gap-2">
+            <div className="flex flex-none items-start justify-between gap-2 sm:justify-start">
               <span
                 className={cn(
                   "rounded-md border px-2 py-1 text-[10px] font-medium",
@@ -423,7 +423,7 @@ function AssetCard({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-200 pt-3 text-[11px] dark:border-white/[0.08]">
+          <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 text-[11px] dark:border-white/[0.08] sm:grid-cols-2">
             <MetaItem
               label="Generated At"
               value={formatDate(asset.generatedAt)}
@@ -517,7 +517,7 @@ function AssetViewer({
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 border-t border-slate-200 p-4 dark:border-white/10">
+        <div className="grid grid-cols-1 gap-2 border-t border-slate-200 p-4 dark:border-white/10 sm:grid-cols-3">
           <ActionButton
             icon={copied ? Check : Copy}
             label={copied ? "Copied" : "Copy"}

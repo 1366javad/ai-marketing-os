@@ -109,11 +109,11 @@ function DashboardView({ dashboardData }) {
   const campaing = [];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
       {/* Welcome Row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight dark:text-white text-slate-900">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Welcome back 👋
           </h2>
           <p className="text-sm mt-1 dark:text-slate-400 text-slate-500">
@@ -125,7 +125,7 @@ function DashboardView({ dashboardData }) {
             startNavigation();
             router.push("/dashboard/campaings");
           }}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF] text-white text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all duration-200 hover:-translate-y-[1px]"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-[1px] hover:shadow-lg hover:shadow-indigo-500/25 sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           New Campaign
@@ -133,7 +133,7 @@ function DashboardView({ dashboardData }) {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatsCard
           icon={FolderKanban}
           label="Total Campaigns"
@@ -162,23 +162,23 @@ function DashboardView({ dashboardData }) {
       </div>
 
       {/* Quick Actions */}
-      <GlassCard className="p-6">
+      <GlassCard className="p-4 sm:p-6">
         <h3 className="font-semibold text-sm mb-4 dark:text-white text-slate-900">
           Quick Actions
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           {quickActions.map((a) => (
             <Link
               key={a.label}
               href={a.href}
-              className={`flex items-center gap-3 p-4 rounded-xl transition-all duration-200 group bg-gradient-to-br border
+              className={`group flex min-w-0 items-center gap-3 rounded-xl border bg-gradient-to-br p-4 transition-all duration-200
                 ${a.color}
                 dark:border-white/[0.06] hover:border-white/[0.12]
                   border-gray-100 hover:border-gray-200
               `}
             >
               <span className="text-2xl">{a.emoji}</span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-semibold leading-tight dark:text-white text-slate-900">
                   {a.label}
                 </p>
@@ -216,7 +216,7 @@ function DashboardView({ dashboardData }) {
               ))}
             </div>
           ) : campaigns.length === 0 ? (
-            <GlassCard className="p-10 text-center">
+            <GlassCard className="p-6 text-center sm:p-10">
               <FolderKanban
                 className="w-10 h-10 mx-auto mb-3
                   dark:text-slate-600 text-slate-300"

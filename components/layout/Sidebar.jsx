@@ -42,7 +42,7 @@ const navItems = [
   { name: "Account", href: "/dashboard/settings", icon: UserCircle },
 ];
 
-export default function Sidebar({ currentPageName }) {
+export default function Sidebar({ currentPageName, mobile = false, onNavigate }) {
   const pathname = usePathname();
   const [plan, setPlan] = useState(null);
 
@@ -97,7 +97,12 @@ export default function Sidebar({ currentPageName }) {
   };
 
   return (
-    <aside className="w-[290px] h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-white/[0.06] flex flex-col fixed left-0 top-0 z-30">
+    <aside
+      className={cn(
+        "flex h-full w-[290px] flex-col border-r border-gray-200 bg-white dark:border-white/[0.06] dark:bg-dark-bg",
+        mobile ? "relative" : "fixed left-0 top-0 z-30 h-screen",
+      )}
+    >
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-100 dark:border-white/[0.06] block hover:opacity-80 transition-opacity">
         <Logo />
@@ -112,6 +117,7 @@ export default function Sidebar({ currentPageName }) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group text-sm",
                 active

@@ -148,9 +148,9 @@ function UsageView({
   }
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 p-0 sm:p-2">
       <div className="min-h-screen bg-[#F8FAFC] text-slate-900 transition-colors duration-300 dark:bg-gray-800/70 dark:text-slate-100">
-        <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl space-y-5 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
@@ -199,7 +199,7 @@ function UsageView({
             </div>
           </div>
 
-          <section className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center">
+          <section className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center sm:p-6">
             <div className="flex flex-1 items-center gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] shadow-lg shadow-indigo-500/25">
                 <Zap className="h-6 w-6 text-white" />
@@ -220,7 +220,7 @@ function UsageView({
               </div>
             </div>
 
-            <div className="min-w-[220px]">
+            <div className="min-w-0 sm:min-w-[220px]">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 Remaining Today
               </p>
@@ -242,7 +242,7 @@ function UsageView({
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
                   {period.label}
                 </h2>
-                <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <Metric label="Credits" value={period.credits} />
                   <Metric label="Tokens" value={period.tokens} />
                   <Metric label="Requests" value={period.requests} />
@@ -275,7 +275,7 @@ function UsageView({
             ))}
           </section>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 dark:border-gray-800 dark:bg-gray-900">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 dark:border-gray-800 dark:bg-gray-900 sm:p-6">
             <UsageChart usage={filteredUsage} />
           </div>
 
@@ -297,7 +297,7 @@ function UsageView({
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-gray-800">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-gray-800 sm:px-6">
               <div>
                 <h2 className="text-base font-semibold text-slate-900 dark:text-white">
                   Recent Activity

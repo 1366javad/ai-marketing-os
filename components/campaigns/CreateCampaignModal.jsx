@@ -9,7 +9,7 @@ const FIELDS = [
   {
     key: "name",
     label: "Campaign Name *",
-    placeholder: "e.g. Black Friday Sale 2024",
+    placeholder: "e.g. Black Friday Sale 2026",
     type: "input",
   },
   {
@@ -116,112 +116,109 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
 
   return (
     <>
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border shadow-2xl dark:bg-dark-bg dark:border-white/[0.08]
-            bg-white border-slate-200 custom-scrollbar"
-      >
-        {/* Header */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm sm:p-4">
         <div
-          className="flex items-center justify-between px-6 py-5 border-b
-            dark:border-white/[0.06] border-slate-100"
+          className="custom-scrollbar max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border shadow-2xl dark:bg-dark-bg dark:border-white/[0.08] sm:max-h-[90vh]
+            bg-white border-slate-200"
         >
-          <div>
-            <h2
-              className="text-base font-bold
+          {/* Header */}
+          <div
+            className="flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-6 sm:py-5
+            dark:border-white/[0.06] border-slate-100"
+          >
+            <div>
+              <h2
+                className="text-base font-bold
                 dark:text-white text-slate-900"
-            >
-              Create Campaign
-            </h2>
-            <p
-              className="text-xs mt-0.5
+              >
+                Create Campaign
+              </h2>
+              <p
+                className="text-xs mt-0.5
                 dark:text-slate-500 text-slate-400"
-            >
-              Set up your AI marketing campaign
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl transition-colors
+              >
+                Set up your AI marketing campaign
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl transition-colors
               dark
                 :hover:bg-white/[0.06] dark:text-slate-400
                 hover:bg-slate-100 text-slate-500"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {FIELDS.map((f) => (
-              <div
-                key={f.key}
-                className={
-                  f.type === "textarea" || f.key === "name"
-                    ? "sm:col-span-2"
-                    : ""
-                }
-              >
-                <label
-                  className="block text-xs font-medium mb-1.5
-                    dark:text-slate-300 text-slate-700"
-                >
-                  {f.label}
-                </label>
-                {f.type === "textarea" ? (
-                  <textarea
-                    rows={2}
-                    placeholder={f.placeholder}
-                    value={form[f.key]}
-                    onChange={handle(f.key)}
-                    className={cn(inputClass, "resize-none")}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    placeholder={f.placeholder}
-                    value={form[f.key]}
-                    onChange={handle(f.key)}
-                    className={inputClass}
-                  />
-                )}
-              </div>
-            ))}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
-        </div>
+          {/* Form */}
+          <div className="space-y-4 px-4 py-4 sm:px-6 sm:py-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {FIELDS.map((f) => (
+                <div
+                  key={f.key}
+                  className={
+                    f.type === "textarea" || f.key === "name"
+                      ? "sm:col-span-2"
+                      : ""
+                  }
+                >
+                  <label
+                    className="block text-xs font-medium mb-1.5
+                    dark:text-slate-300 text-slate-700"
+                  >
+                    {f.label}
+                  </label>
+                  {f.type === "textarea" ? (
+                    <textarea
+                      rows={2}
+                      placeholder={f.placeholder}
+                      value={form[f.key]}
+                      onChange={handle(f.key)}
+                      className={cn(inputClass, "resize-none")}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder={f.placeholder}
+                      value={form[f.key]}
+                      onChange={handle(f.key)}
+                      className={inputClass}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
 
-        {/* Footer */}
-        <div
-          className="flex items-center justify-end gap-3 px-6 py-5 border-t
+            {error && <p className="text-xs text-red-500">{error}</p>}
+          </div>
+
+          {/* Footer */}
+          <div
+            className="flex flex-col-reverse gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6 sm:py-5
             dark:border-white/[0.06] border-slate-100"
-        >
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-colors
+          >
+            <button
+              onClick={onClose}
+              className="w-full rounded-xl px-4 py-2 text-sm font-medium transition-colors sm:w-auto
               dark
                 :text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.06]
                 text-slate-600 hover:bg-slate-100"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF] text-white text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all disabled:opacity-50"
-          >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {saving ? "Creating..." : "Create Campaign"}
-          </button>
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF] px-5 py-2 text-sm font-medium text-white transition-all hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 sm:w-auto"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? "Creating..." : "Create Campaign"}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-      <UpgradeModal
-        gate={upgradeGate}
-        onClose={() => setUpgradeGate(null)}
-      />
+      <UpgradeModal gate={upgradeGate} onClose={() => setUpgradeGate(null)} />
     </>
   );
 }

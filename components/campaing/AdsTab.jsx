@@ -357,7 +357,7 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
   return (
     <div className="space-y-6 bg-slate-50 text-slate-900 dark:bg-dark-bg dark:text-white/90">
       <section className="mt-5">
-        <div className="mb-2 flex items-center justify-between text-xs">
+        <div className="mb-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
           <span className="uppercase tracking-[0.18em] text-slate-500 dark:text-white/40">
             Ads Task
           </span>
@@ -366,7 +366,7 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none">
+        <div className="grid  gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-3">
           {ADS_TASKS.map((task) => {
             const Icon = task.icon;
             const isActive = selectedTask === task.id;
@@ -391,12 +391,12 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
                 }}
                 className={
                   isActive
-                    ? "group relative inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
-                    : "group relative inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-slate-600 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    ? "group relative inline-flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
+                    : "group relative inline-flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white"
                 }
               >
                 <Icon className={`h-4 w-4 ${task.iconColor}`} />
-                <span>{task.label}</span>
+                <span className="min-w-0 flex-1 truncate">{task.label}</span>
                 {!gate.allowed ? (
                   <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
                 ) : (

@@ -15,14 +15,14 @@ function SettingsView({ settings }) {
   const { isDark, setIsDark } = useThemeContext();
 
   return (
-    <main className="flex-1 p-6">
-      <div className="p-8">
+    <main className="flex-1 p-0 sm:p-2">
+      <div className="p-3 sm:p-8">
         <div className="mx-auto max-w-4xl">
           <div className="mb-8">
-            <h1 className="mb-2 text-4xl font-bold text-gray-900 dark:text-white">
+            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
               Account
             </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400">
+            <p className="text-base text-gray-600 dark:text-gray-400 sm:text-lg">
               Manage your profile, interface preferences, billing status, and
               product information.
             </p>
@@ -99,7 +99,7 @@ function AccountSection({ id, icon: Icon, title, description, children }) {
       id={id}
       className="mb-6 scroll-mt-24 rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-200 dark:border-gray-700 dark:bg-gray-800"
     >
-      <div className="border-b border-gray-200 p-6 dark:border-gray-700">
+      <div className="border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300">
             <Icon className="h-5 w-5" />
@@ -114,7 +114,7 @@ function AccountSection({ id, icon: Icon, title, description, children }) {
           </div>
         </div>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </section>
   );
 }

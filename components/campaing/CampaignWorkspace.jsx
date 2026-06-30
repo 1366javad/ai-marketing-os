@@ -104,7 +104,7 @@ export default function CampaignWorkspace({
   const s = STATUS_STYLES[campaign.status] || STATUS_STYLES.draft;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-4 sm:space-y-6">
       <Link
         href="/dashboard/campaings"
         className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors
@@ -115,24 +115,24 @@ export default function CampaignWorkspace({
       </Link>
 
       <div
-        className="p-6 rounded-2xl border
+        className="rounded-2xl border p-4 sm:p-6
           dark:bg-white/[0.03] dark:border-white/[0.06]
             bg-white border-slate-100 shadow-sm"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xl sm:h-12 sm:w-12 sm:text-2xl
                 dark:bg-white/[0.06]
                 bg-gradient-to-br from-[#3B3CFF]/10 to-[#7B5CFF]/10"
             >
               🚀
             </div>
 
-            <div>
-              <div className="flex items-center gap-3 mb-1">
+            <div className="min-w-0">
+              <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
                 <h1
-                  className="text-xl font-bold
+                  className="break-words text-lg font-bold sm:text-xl
                     dark:text-white text-slate-900"
                 >
                   {campaign.name}
@@ -149,22 +149,24 @@ export default function CampaignWorkspace({
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
                 {campaign.goal && (
                   <span
-                    className="flex items-center gap-1.5 text-xs
+                    className="flex min-w-0 items-center gap-1.5 text-xs
                       dark:text-slate-400 text-slate-500"
                   >
-                    <Target className="w-3.5 h-3.5" /> {campaign.goal}
+                    <Target className="h-3.5 w-3.5 shrink-0" />
+                    <span className="break-words">{campaign.goal}</span>
                   </span>
                 )}
 
                 {campaign.industry && (
                   <span
-                    className="flex items-center gap-1.5 text-xs
+                    className="flex min-w-0 items-center gap-1.5 text-xs
                       dark:text-slate-400 text-slate-500"
                   >
-                    <Building2 className="w-3.5 h-3.5" /> {campaign.industry}
+                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="break-words">{campaign.industry}</span>
                   </span>
                 )}
 
@@ -173,9 +175,10 @@ export default function CampaignWorkspace({
                     href={campaign.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-[#3B3CFF] hover:underline"
+                    className="flex min-w-0 items-center gap-1.5 text-xs text-[#3B3CFF] hover:underline"
                   >
-                    <Globe className="w-3.5 h-3.5" /> {campaign.website}
+                    <Globe className="h-3.5 w-3.5 shrink-0" />
+                    <span className="break-all">{campaign.website}</span>
                   </a>
                 )}
               </div>
@@ -193,7 +196,7 @@ export default function CampaignWorkspace({
       </div>
 
       <div
-        className="flex items-center gap-1 border-b 
+        className="-mx-3 flex items-center gap-1 overflow-x-auto border-b px-3 pb-px sm:mx-0 sm:px-0
           dark:border-white/[0.06] border-slate-200"
       >
         {TABS.map((tab) => (
@@ -215,7 +218,7 @@ export default function CampaignWorkspace({
               setActiveTab(tab);
             }}
             className={cn(
-              "px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px whitespace-nowrap",
+              "whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-all -mb-px sm:px-4",
               activeTab === tab
                 ? "border-[#3B3CFF] text-[#3B3CFF]"
                 : "border-transparent dark:text-slate-400 dark:hover:text-white text-slate-500 hover:text-slate-900",
@@ -226,7 +229,7 @@ export default function CampaignWorkspace({
         ))}
       </div>
 
-      <div>
+      <div className="min-w-0">
         {activeTab === "Overview" && (
           <OverviewTab
             campaign={campaign}

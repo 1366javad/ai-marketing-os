@@ -30,7 +30,7 @@ function NavbarClient({ user, profile }) {
         "border-b border-slate-200/60 backdrop-blur-xl dark:border-white/10",
       )}
     >
-      <div className="max-w-8xl mx-auto px-6 py-3">
+      <div className="max-w-8xl mx-auto px-3 py-3 sm:px-6">
         <div className="flex items-center justify-between">
           <Logo />
 
@@ -94,7 +94,7 @@ function NavbarClient({ user, profile }) {
           className={cn(
             "md:hidden absolute top-full left-0 w-full border-base ",
             "animate-slide-down  transition-all duration-300",
-            " border-b backdrop-blur-xl p-6 dark:bg-white/10 dark:text-blue-300 shadow-lg animate-fade-in",
+            " border-b backdrop-blur-xl p-4 dark:bg-dark-surface dark:text-blue-300 shadow-lg animate-fade-in sm:p-6",
           )}
         >
           <div className="flex flex-col items-end space-y-4">
@@ -114,7 +114,7 @@ function NavbarClient({ user, profile }) {
             ))}
           </div>
 
-          <div className="flex flex-row justify-end mt-4 gap-4 ">
+          <div className="mt-4 flex flex-row justify-end gap-3 sm:gap-4">
             {user ? (
               <Profile initialUser={user} initialProfile={profile} />
             ) : (

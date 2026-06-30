@@ -32,10 +32,7 @@ import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
-import {
-  getActionGate,
-  getFeatureGate,
-} from "@/app/lib/plans/planPolicy";
+import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
 
 const creativeTasks = [
   {
@@ -276,7 +273,8 @@ function normalizeGeneratedOutput(data, taskId) {
     risk_level: event?.risk_level || data?.quality?.riskLevel || "medium",
     created_at: event?.created_at || output.created_at || createdAt,
     metadata: output.metadata || creativeOutput.metadata || {},
-    runId: data?.runId || output.runId || creativeOutput.metadata?.operationId || "",
+    runId:
+      data?.runId || output.runId || creativeOutput.metadata?.operationId || "",
   };
 }
 
@@ -746,7 +744,7 @@ export default function CreativeTab({
   return (
     <div className="space-y-6 bg-slate-50 text-slate-900 dark:bg-dark-bg dark:text-white/90">
       <section className="mt-5">
-        <div className="mb-2 flex items-center justify-between text-xs">
+        <div className="mb-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
           <span className="uppercase tracking-[0.18em] text-slate-500 dark:text-white/40">
             Creative Task
           </span>
@@ -755,7 +753,7 @@ export default function CreativeTab({
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none">
+        <div className="grid  gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-3">
           {creativeTasks.map((task) => {
             const Icon = task.icon;
             const isActive = selectedTask === task.id;
@@ -778,12 +776,12 @@ export default function CreativeTab({
                 }}
                 className={
                   isActive
-                    ? "group relative inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
-                    : "group relative inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-slate-600 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    ? "group relative inline-flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
+                    : "group relative inline-flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:text-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.06] dark:hover:text-white"
                 }
               >
                 <Icon className={`h-4 w-4 ${task.iconColor}`} />
-                <span>{task.label}</span>
+                <span className="min-w-0 flex-1 truncate">{task.label}</span>
                 {!gate.allowed ? (
                   <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
                 ) : (
@@ -820,8 +818,8 @@ export default function CreativeTab({
                   className={`h-1.5 w-1.5 rounded-full ${
                     activeReport
                       ? String(
-                            activeOutput?.approval_status || "",
-                          ).toLowerCase() === "approved"
+                          activeOutput?.approval_status || "",
+                        ).toLowerCase() === "approved"
                         ? "bg-emerald-500/80"
                         : "bg-amber-500/80"
                       : "bg-slate-300 dark:bg-white/15"
@@ -1047,12 +1045,14 @@ export default function CreativeTab({
                     >
                       {getRenderableItems(activeReport.props).length > 0 ? (
                         <ul className="space-y-2">
-                          {getRenderableItems(activeReport.props).map((item, index) => (
-                            <li key={index} className="flex gap-2">
-                              <Check className="mt-0.5 h-4 w-4 flex-none text-emerald-500" />
-                              <span>{item}</span>
-                            </li>
-                          ))}
+                          {getRenderableItems(activeReport.props).map(
+                            (item, index) => (
+                              <li key={index} className="flex gap-2">
+                                <Check className="mt-0.5 h-4 w-4 flex-none text-emerald-500" />
+                                <span>{item}</span>
+                              </li>
+                            ),
+                          )}
                         </ul>
                       ) : null}
                     </ReportBlock>
@@ -1211,14 +1211,17 @@ export default function CreativeTab({
                       icon={Palette}
                       iconColor="text-violet-400"
                     >
-                      {getRenderableItems(activeReport.visualNotes).length > 0 ? (
+                      {getRenderableItems(activeReport.visualNotes).length >
+                      0 ? (
                         <ul className="space-y-2">
-                          {getRenderableItems(activeReport.visualNotes).map((item, index) => (
-                            <li key={index} className="flex gap-2">
-                              <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
-                              <span>{item}</span>
-                            </li>
-                          ))}
+                          {getRenderableItems(activeReport.visualNotes).map(
+                            (item, index) => (
+                              <li key={index} className="flex gap-2">
+                                <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
+                                <span>{item}</span>
+                              </li>
+                            ),
+                          )}
                         </ul>
                       ) : null}
                     </ReportBlock>
@@ -1340,10 +1343,7 @@ export default function CreativeTab({
           })}
         </div>
       </section>
-      <UpgradeModal
-        gate={upgradeGate}
-        onClose={() => setUpgradeGate(null)}
-      />
+      <UpgradeModal gate={upgradeGate} onClose={() => setUpgradeGate(null)} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useTheme } from "../theme/ThemeProvider";
 import { cn } from "@/lib/utils";
-import { Sparkles, X, Send, Minimize2 } from "lucide-react";
+import { Sparkles, X, Send } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import LoadingDots from "../ui/LoadingDots";
 import ReactMarkdown from "react-markdown";
@@ -45,7 +45,7 @@ export default function AIAssistant() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] text-white flex items-center justify-center shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all duration-200"
+        className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] text-white shadow-2xl shadow-indigo-500/30 transition-all duration-200 hover:scale-105 hover:shadow-indigo-500/50 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
       >
         <Sparkles className="w-6 h-6" />
       </button>
@@ -55,7 +55,7 @@ export default function AIAssistant() {
   return (
     <div
       className={cn(
-        "fixed bottom-6 right-6 z-50 w-[380px] h-[520px] rounded-2xl border flex flex-col overflow-hidden",
+        "fixed inset-x-3 bottom-3 z-50 flex h-[min(76vh,520px)] flex-col overflow-hidden rounded-2xl border sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[520px] sm:w-[380px]",
         theme === "dark"
           ? "bg-[#13141b]/95 border-white/[0.08] shadow-2xl shadow-black/50"
           : "bg-white/95 border-slate-200 shadow-2xl shadow-slate-300/50",

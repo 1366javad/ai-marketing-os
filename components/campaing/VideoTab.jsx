@@ -25,10 +25,7 @@ import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
-import {
-  getActionGate,
-  getFeatureGate,
-} from "@/app/lib/plans/planPolicy";
+import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
 
 const VIDEO_TASKS = [
   {
@@ -245,7 +242,7 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
   return (
     <div className="space-y-6 bg-slate-50 text-slate-900 dark:bg-dark-bg dark:text-white/90">
       <section className="mt-5">
-        <div className="mb-2 flex items-center justify-between text-xs">
+        <div className="mb-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
           <span className="uppercase tracking-[0.18em] text-slate-500 dark:text-white/40">
             Video Task
           </span>
@@ -253,7 +250,7 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
             Pick one to brief
           </span>
         </div>
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none">
+        <div className="grid  gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-3">
           {VIDEO_TASKS.map((task) => {
             const Icon = task.icon;
             const selected = task.id === selectedTask;
@@ -276,12 +273,12 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
                 }}
                 className={
                   selected
-                    ? "inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium dark:border-white/10 dark:bg-white/[0.08] dark:text-white"
-                    : "inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-white/70 dark:hover:bg-white/[0.06]"
+                    ? "inline-flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-left text-sm font-medium dark:border-white/10 dark:bg-white/[0.08] dark:text-white"
+                    : "inline-flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100 dark:text-white/70 dark:hover:bg-white/[0.06]"
                 }
               >
                 <Icon className={`h-4 w-4 ${task.iconColor}`} />
-                <span>{task.label}</span>
+                <span className="min-w-0 flex-1 truncate">{task.label}</span>
                 {!gate.allowed ? (
                   <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
                 ) : !task.enabled ? (
@@ -461,7 +458,9 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
                     : "max-h-[300px] overflow-hidden"
                 }`}
               >
-                <OutputBlock title="Summary">{activeReport.summary}</OutputBlock>
+                <OutputBlock title="Summary">
+                  {activeReport.summary}
+                </OutputBlock>
                 {activeReport.hook && (
                   <OutputBlock title="Hook">{activeReport.hook}</OutputBlock>
                 )}
@@ -470,9 +469,11 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
                     {activeReport.visualStyle}
                   </OutputBlock>
                 )}
-                {getRenderableScenes(activeReport.scenes).map((scene, index) => (
-                  <SceneCard key={scene.scene || index} scene={scene} />
-                ))}
+                {getRenderableScenes(activeReport.scenes).map(
+                  (scene, index) => (
+                    <SceneCard key={scene.scene || index} scene={scene} />
+                  ),
+                )}
                 {activeReport.cta && (
                   <OutputBlock title="CTA">{activeReport.cta}</OutputBlock>
                 )}
@@ -578,10 +579,7 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
           })}
         </div>
       </section>
-      <UpgradeModal
-        gate={upgradeGate}
-        onClose={() => setUpgradeGate(null)}
-      />
+      <UpgradeModal gate={upgradeGate} onClose={() => setUpgradeGate(null)} />
     </div>
   );
 }
