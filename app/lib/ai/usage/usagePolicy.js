@@ -1,17 +1,19 @@
-export const PLAN_LIMITS = {
-  free: {
-    dailyCredits: 100,
-    maxCampaigns: 3,
-    videoEnabled: false,
-    exportEnabled: false,
-  },
-  pro: {
-    dailyCredits: 5000,
-    maxCampaigns: null,
-    videoEnabled: true,
-    exportEnabled: true,
-  },
-};
+import { getPlanDefinition, PLAN_DEFINITIONS } from "@/app/lib/plans/planPolicy";
+
+export const PLAN_LIMITS = Object.fromEntries(
+  Object.entries(PLAN_DEFINITIONS).map(([plan, definition]) => [
+    plan,
+    {
+      dailyCredits: definition.dailyCredits,
+      monthlyCredits: definition.monthlyCredits,
+      maxCampaigns: definition.maxCampaigns,
+      videoEnabled: definition.videoEnabled,
+      exportEnabled: definition.exportEnabled,
+      regenerateEnabled: definition.regenerateEnabled,
+      regenerateDailyLimit: definition.regenerateDailyLimit,
+    },
+  ]),
+);
 
 export const CREDIT_COSTS = {
   research: 15,
@@ -27,7 +29,9 @@ export const CREDIT_LIMIT_MESSAGE =
   "You've used today's free credits. Come back tomorrow or upgrade to Pro.";
 
 export function getPlanLimits(plan = "free") {
-  return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+  const definition = getPlanDefinition(plan);
+
+  return PLAN_LIMITS[definition.id] || PLAN_LIMITS.free;
 }
 
 export function getModuleCreditCost(module) {

@@ -327,8 +327,8 @@ function ModuleReadiness({ modules }) {
 }
 
 function TechnicalDetails({ technical }) {
-  const providerSummary = Object.entries(technical.providers || {})
-    .map(([provider, count]) => `${provider}: ${count}`)
+  const engineSummary = Object.entries(technical.providers || {})
+    .map(([, count]) => `AI Engine: ${count}`)
     .join(", ");
   const riskSummary = Object.entries(technical.risks || {})
     .map(([risk, count]) => `${risk}: ${count}`)
@@ -343,7 +343,7 @@ function TechnicalDetails({ technical }) {
         <Detail label="Avg. Confidence" value={technical.averageConfidence == null ? "Not recorded" : `${technical.averageConfidence}%`} />
         <Detail label="Token Usage" value={technical.tokenUsage ?? "Not recorded"} />
         <Detail label="Generation Time" value={technical.generationTimeMs == null ? "Not recorded" : `${technical.generationTimeMs} ms`} />
-        <Detail label="Providers" value={providerSummary || "Not recorded"} />
+        <Detail label="AI Engines" value={engineSummary || "Not recorded"} />
         <Detail label="Risk Distribution" value={riskSummary || "Not recorded"} />
       </dl>
     </Panel>

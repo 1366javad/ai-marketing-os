@@ -1,9 +1,8 @@
 import { createClient } from "@/app/lib/supabase/server";
 import {
   normalizeUsageEvents,
-  summarizeUsage,
 } from "@/app/lib/usage/aggregateUsage";
-import { PLAN_LIMITS } from "@/app/lib/ai/usage/usagePolicy";
+import { getCurrentPlanPayload } from "@/app/lib/plans/planResolver";
 import UsageView from "@/components/dashboard/UsageView";
 
 export default async function UsagePage() {
@@ -22,7 +21,7 @@ export default async function UsagePage() {
     .order("created_at", { ascending: false });
 
   const events = normalizeUsageEvents(usage || []);
-  const summary = summarizeUsage(events);
+  const plan = await getCurrentPlanPayload({ supabase, userId: user.id });
   const today = startOfToday();
   const todayCredits = events.reduce((sum, event) => {
     const createdAt = new Date(event.createdAt);
@@ -30,22 +29,16 @@ export default async function UsagePage() {
     if (event.status === "failed") return sum;
     return sum + Number(event.credits || 0);
   }, 0);
-  const dailyCredits = PLAN_LIMITS.free.dailyCredits;
+  const dailyCredits = plan.dailyCredits;
 
   return (
     <UsageView
       usage={events}
       plan={{
-        name: "Free Plan",
+        name: `${plan.name} Plan`,
         dailyCredits,
         todayCredits,
         remainingCredits: Math.max(0, dailyCredits - todayCredits),
-      }}
-      stats={{
-        totalRequests: summary.requests,
-        totalTokens: summary.tokens,
-        totalCredits: summary.credits,
-        totalProviders: summary.providers.size,
       }}
     />
   );

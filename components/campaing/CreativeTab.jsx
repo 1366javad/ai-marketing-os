@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import {
   AlertCircle,
@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Layers,
   Loader2,
+  Lock,
   Megaphone,
   Monitor,
   PenLine,
@@ -30,6 +31,11 @@ import {
 import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
+import {
+  getActionGate,
+  getFeatureGate,
+} from "@/app/lib/plans/planPolicy";
 
 const creativeTasks = [
   {
@@ -270,6 +276,7 @@ function normalizeGeneratedOutput(data, taskId) {
     risk_level: event?.risk_level || data?.quality?.riskLevel || "medium",
     created_at: event?.created_at || output.created_at || createdAt,
     metadata: output.metadata || creativeOutput.metadata || {},
+    runId: data?.runId || output.runId || creativeOutput.metadata?.operationId || "",
   };
 }
 
@@ -364,6 +371,8 @@ function ReportBlock({
   iconColor = "text-violet-400",
   children,
 }) {
+  if (!hasRenderableContent(children)) return null;
+
   return (
     <section className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
       <div className="mb-2 flex items-center gap-2">
@@ -373,18 +382,87 @@ function ReportBlock({
         </h4>
       </div>
       <div className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-        {children || (
-          <span className="text-slate-500 dark:text-white/40">
-            No {title.toLowerCase()} available.
-          </span>
-        )}
+        {children}
       </div>
     </section>
   );
 }
 
-export default function CreativeTab({ campaign, creatives = [] }) {
-  const router = useRouter();
+function hasRenderableContent(value) {
+  if (typeof value === "string") return hasText(value);
+  if (Array.isArray(value)) return value.some(hasRenderableContent);
+  if (!value || typeof value !== "object") return Boolean(value);
+  return true;
+}
+
+function getRenderableItems(items) {
+  return Array.isArray(items)
+    ? items.map((item) => stringifyItem(item)).filter(Boolean)
+    : [];
+}
+
+function getRenderableEntries(value) {
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value).filter(([, entryValue]) => hasText(entryValue));
+}
+
+function CreativeImageLoadingCard() {
+  return (
+    <section className="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-400/20 dark:bg-sky-400/10">
+      <div className="flex items-start gap-3">
+        <div className="rounded-lg border border-sky-200 bg-white p-2 dark:border-sky-400/20 dark:bg-white/10">
+          <ImageIcon className="h-5 w-5 text-sky-500" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+            Creating Campaign Image
+          </h4>
+          <p className="mt-1 text-xs text-slate-500 dark:text-white/50">
+            Estimated generation time: 15-30 seconds
+          </p>
+        </div>
+        <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
+      </div>
+
+      <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-white/65">
+        <div className="flex items-center gap-2">
+          <Check className="h-4 w-4 text-emerald-500" />
+          Preparing composition...
+        </div>
+        <div className="flex items-center gap-2">
+          <Check className="h-4 w-4 text-emerald-500" />
+          Lighting scene...
+        </div>
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
+          Rendering image...
+        </div>
+      </div>
+
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+        <div className="h-full w-2/3 animate-pulse rounded-full bg-sky-500" />
+      </div>
+      <p className="mt-3 text-xs text-slate-500 dark:text-white/45">
+        AI is generating your campaign asset. The text is ready while the image
+        finishes in the background.
+      </p>
+    </section>
+  );
+}
+
+function getImageUrl(report) {
+  const assetUrl = report?.asset?.imageUrl || "";
+  const content = report?.content || "";
+  if (hasText(assetUrl)) return assetUrl;
+  if (/^(data:image\/|https?:\/\/)/i.test(content)) return content;
+  return "";
+}
+
+export default function CreativeTab({
+  campaign,
+  creatives = [],
+  plan = "free",
+}) {
   const { streamObject } = useTextStream();
   const searchParams = useSearchParams();
   const viewerRef = useRef(null);
@@ -405,6 +483,8 @@ export default function CreativeTab({ campaign, creatives = [] }) {
   const [prompt, setPrompt] = useState("");
   const [copied, setCopied] = useState(false);
   const [isOutputExpanded, setIsOutputExpanded] = useState(false);
+  const [upgradeGate, setUpgradeGate] = useState(null);
+  const [imageJobs, setImageJobs] = useState({});
 
   useEffect(() => {
     setLocalOutputs(creatives || []);
@@ -417,6 +497,45 @@ export default function CreativeTab({ campaign, creatives = [] }) {
     });
     setIsOutputExpanded(false);
   }, [selectedTask]);
+
+  useEffect(() => {
+    const activeJobs = Object.entries(imageJobs).filter(
+      ([, job]) => job?.runId && job.status === "generating",
+    );
+
+    if (activeJobs.length === 0) return;
+
+    const controller = new AbortController();
+    const timer = window.setInterval(async () => {
+      await Promise.all(
+        activeJobs.map(async ([taskId, job]) => {
+          try {
+            const response = await fetch(`/api/creative/status/${job.runId}`, {
+              signal: controller.signal,
+              cache: "no-store",
+            });
+            if (!response.ok) return;
+
+            const status = await response.json();
+            if (status.imageStatus === "ready") {
+              applyImageStatus(taskId, status);
+            } else if (status.imageStatus === "failed") {
+              markImageFailed(taskId, status);
+            }
+          } catch (error) {
+            if (error?.name !== "AbortError") {
+              console.error("Creative image status polling failed:", error);
+            }
+          }
+        }),
+      );
+    }, 2000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [imageJobs]);
 
   const activeTask = creativeTasks.find((task) => task.id === selectedTask);
   const ActiveIcon = activeTask?.icon || ImageIcon;
@@ -449,14 +568,92 @@ export default function CreativeTab({ campaign, creatives = [] }) {
             : "text-slate-500 dark:text-white/50",
     };
   });
-  const activeProvider = String(activeReport?.metadata?.provider || "").trim();
   const activeConfidence = Number(activeReport?.metadata?.confidence || 0);
-  const activeAssetUrl =
-    activeReport?.asset?.imageUrl || activeReport?.content || "";
+  const activeAssetUrl = getImageUrl(activeReport);
+  const activeImageJob = imageJobs[selectedTask];
+  const isImageGenerating =
+    !activeAssetUrl &&
+    (activeImageJob?.status === "generating" ||
+      activeReport?.metadata?.imageStatus === "generating");
   const activeText = activeReport ? formatCreativeText(activeReport) : "";
 
+  const applyImageStatus = (taskId, status) => {
+    const mergeImage = (report = {}) => ({
+      ...report,
+      asset: status.asset || report.asset,
+      imagePrompt: status.imagePrompt || report.imagePrompt,
+      review: status.review || report.review,
+      metadata: {
+        ...(report.metadata || {}),
+        ...(status.metadata || {}),
+        imageStatus: "ready",
+      },
+    });
+
+    setResults((prev) => ({
+      ...prev,
+      [taskId]: mergeImage(prev[taskId]),
+    }));
+    setLocalOutputs((prev) =>
+      prev.map((output) =>
+        getOutputTaskId(output) === taskId
+          ? {
+              ...output,
+              content: status.asset?.imageUrl || output.content,
+              creativeOutput: mergeImage(output.creativeOutput),
+              metadata: {
+                ...(output.metadata || {}),
+                ...(status.metadata || {}),
+                imageStatus: "ready",
+              },
+            }
+          : output,
+      ),
+    );
+    setImageJobs((prev) => ({
+      ...prev,
+      [taskId]: { ...prev[taskId], status: "ready" },
+    }));
+  };
+
+  const markImageFailed = (taskId, status) => {
+    setResults((prev) => ({
+      ...prev,
+      [taskId]: {
+        ...(prev[taskId] || {}),
+        metadata: {
+          ...(prev[taskId]?.metadata || {}),
+          ...(status.metadata || {}),
+          imageStatus: "failed",
+        },
+      },
+    }));
+    setImageJobs((prev) => ({
+      ...prev,
+      [taskId]: { ...prev[taskId], status: "failed" },
+    }));
+  };
+
   const generateCreative = async (taskId) => {
+    const featureGate = getFeatureGate({
+      plan,
+      module: "creative",
+      feature: taskId,
+    });
     if (!campaign || !activeTask || !hasCampaignContext) return;
+    if (!featureGate.allowed) {
+      setUpgradeGate(featureGate);
+      return;
+    }
+
+    const existingOutput = findLatestOutputForTask(localOutputs, taskId);
+    if (existingOutput) {
+      const regenerateGate = getActionGate({ plan, action: "regenerate" });
+      if (!regenerateGate.allowed) {
+        setUpgradeGate(regenerateGate);
+        return;
+      }
+    }
 
     setLoading((prev) => ({
       ...prev,
@@ -480,6 +677,7 @@ export default function CreativeTab({ campaign, creatives = [] }) {
           tone,
           visualDirection,
           prompt,
+          regenerate: Boolean(existingOutput),
         }),
       });
 
@@ -508,7 +706,13 @@ export default function CreativeTab({ campaign, creatives = [] }) {
         normalizeGeneratedOutput(data, taskId),
         ...prev,
       ]);
-      router.refresh();
+      setImageJobs((prev) => ({
+        ...prev,
+        [taskId]: {
+          runId: data.runId,
+          status: data.imageStatus || "generating",
+        },
+      }));
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
@@ -531,6 +735,11 @@ export default function CreativeTab({ campaign, creatives = [] }) {
 
   const downloadPdf = () => {
     if (!activeText) return;
+    const gate = getActionGate({ plan, action: "export" });
+    if (!gate.allowed) {
+      setUpgradeGate(gate);
+      return;
+    }
     exportPdf(`${campaign.name}-${activeTask?.title}`, activeText);
   };
 
@@ -550,12 +759,23 @@ export default function CreativeTab({ campaign, creatives = [] }) {
           {creativeTasks.map((task) => {
             const Icon = task.icon;
             const isActive = selectedTask === task.id;
+            const gate = getFeatureGate({
+              plan,
+              module: "creative",
+              feature: task.id,
+            });
 
             return (
               <button
                 key={task.id}
                 type="button"
-                onClick={() => setSelectedTask(task.id)}
+                onClick={() => {
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
+                  setSelectedTask(task.id);
+                }}
                 className={
                   isActive
                     ? "group relative inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
@@ -564,12 +784,16 @@ export default function CreativeTab({ campaign, creatives = [] }) {
               >
                 <Icon className={`h-4 w-4 ${task.iconColor}`} />
                 <span>{task.label}</span>
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    isActive ? "bg-emerald-500/80" : task.dotColor
-                  }`}
-                  aria-hidden="true"
-                ></span>
+                {!gate.allowed ? (
+                  <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
+                ) : (
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isActive ? "bg-emerald-500/80" : task.dotColor
+                    }`}
+                    aria-hidden="true"
+                  ></span>
+                )}
               </button>
             );
           })}
@@ -729,13 +953,18 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                     />
                     Creative Output
                   </div>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                    {activeReport.title || activeTask?.title}
-                  </h3>
+                  {hasText(activeReport.title) && (
+                    <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                      {activeReport.title}
+                    </h3>
+                  )}
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-white/40">
-                    {activeProvider && activeProvider !== "memory" && (
+                    <span className="inline-flex h-9 items-center rounded-lg border border-slate-200 px-3 dark:border-white/10">
+                      Creative Agent
+                    </span>
+                    {(activeAssetUrl || isImageGenerating) && (
                       <span className="inline-flex h-9 items-center rounded-lg border border-slate-200 px-3 dark:border-white/10">
-                        {activeProvider}
+                        Image Asset
                       </span>
                     )}
                     {activeConfidence > 0 && (
@@ -816,13 +1045,12 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                       icon={Package}
                       iconColor="text-emerald-400"
                     >
-                      {Array.isArray(activeReport.props) &&
-                      activeReport.props.length > 0 ? (
+                      {getRenderableItems(activeReport.props).length > 0 ? (
                         <ul className="space-y-2">
-                          {activeReport.props.map((item, index) => (
+                          {getRenderableItems(activeReport.props).map((item, index) => (
                             <li key={index} className="flex gap-2">
                               <Check className="mt-0.5 h-4 w-4 flex-none text-emerald-500" />
-                              <span>{stringifyItem(item)}</span>
+                              <span>{item}</span>
                             </li>
                           ))}
                         </ul>
@@ -833,9 +1061,9 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                       icon={Check}
                       iconColor="text-cyan-400"
                     >
-                      {Object.keys(activeReport.state || {}).length > 0 ? (
+                      {getRenderableEntries(activeReport.state).length > 0 ? (
                         <ul className="space-y-2">
-                          {Object.entries(activeReport.state).map(
+                          {getRenderableEntries(activeReport.state).map(
                             ([key, value]) => (
                               <li key={key}>
                                 <span className="font-medium text-slate-800 dark:text-white/80">
@@ -867,7 +1095,7 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                       icon={PenLine}
                       iconColor="text-sky-400"
                     >
-                      {activeReport.title || activeTask?.title}
+                      {activeReport.title}
                     </ReportBlock>
                     <ReportBlock
                       title="Caption"
@@ -886,19 +1114,19 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                   </div>
 
                   <div className="space-y-3">
-                    <section className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
-                      <div className="mb-2 flex items-center gap-2">
-                        <ImageIcon className="h-3.5 w-3.5 text-sky-400" />
-                        <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600 dark:text-white/70">
-                          Generated Asset
-                        </h4>
-                        {activeReport.platform ? (
-                          <span className="text-xs text-slate-500 dark:text-white/40">
-                            ({activeReport.platform})
-                          </span>
-                        ) : null}
-                      </div>
-                      {activeAssetUrl ? (
+                    {activeAssetUrl ? (
+                      <section className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                        <div className="mb-2 flex items-center gap-2">
+                          <ImageIcon className="h-3.5 w-3.5 text-sky-400" />
+                          <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600 dark:text-white/70">
+                            Generated Asset
+                          </h4>
+                          {activeReport.platform ? (
+                            <span className="text-xs text-slate-500 dark:text-white/40">
+                              ({activeReport.platform})
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-dark-bg/70">
                           <Image
                             src={activeAssetUrl}
@@ -909,15 +1137,26 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                             unoptimized
                           />
                         </div>
-                      ) : (
-                        <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/40">
-                          No generated asset available.
+                      </section>
+                    ) : isImageGenerating ? (
+                      <CreativeImageLoadingCard />
+                    ) : activeReport?.metadata?.imageStatus === "failed" ? (
+                      <section className="rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-400/20 dark:bg-rose-400/10">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-rose-500" />
+                          <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700 dark:text-rose-200">
+                            Image generation failed
+                          </h4>
                         </div>
-                      )}
-                    </section>
+                        <p className="mt-2 text-sm text-rose-700/80 dark:text-rose-100/70">
+                          The creative text is ready, but the campaign image
+                          could not be generated. Try regenerating this asset.
+                        </p>
+                      </section>
+                    ) : null}
 
                     <ReportBlock
-                      title="Provider Prompt"
+                      title="Image Prompt"
                       icon={ImageIcon}
                       iconColor="text-sky-400"
                     >
@@ -928,7 +1167,7 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                       icon={Check}
                       iconColor="text-emerald-400"
                     >
-                      {activeReport.review ? (
+                      {hasText(activeReport.review?.mode) ? (
                         <div className="space-y-1">
                           <div>
                             {activeReport.review.mode === "heuristic"
@@ -972,13 +1211,12 @@ export default function CreativeTab({ campaign, creatives = [] }) {
                       icon={Palette}
                       iconColor="text-violet-400"
                     >
-                      {Array.isArray(activeReport.visualNotes) &&
-                      activeReport.visualNotes.length > 0 ? (
+                      {getRenderableItems(activeReport.visualNotes).length > 0 ? (
                         <ul className="space-y-2">
-                          {activeReport.visualNotes.map((item, index) => (
+                          {getRenderableItems(activeReport.visualNotes).map((item, index) => (
                             <li key={index} className="flex gap-2">
                               <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
-                              <span>{stringifyItem(item)}</span>
+                              <span>{item}</span>
                             </li>
                           ))}
                         </ul>
@@ -1067,7 +1305,20 @@ export default function CreativeTab({ campaign, creatives = [] }) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setSelectedTask(item.id)}
+                onClick={() => {
+                  const gate = getFeatureGate({
+                    plan,
+                    module: "creative",
+                    feature: item.id,
+                  });
+
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
+
+                  setSelectedTask(item.id);
+                }}
                 className="group flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition hover:border-slate-300 hover:bg-slate-100 dark:border-white/5 dark:bg-white/[0.02] dark:hover:border-white/15 dark:hover:bg-white/[0.04]"
               >
                 <div className="flex min-w-0 items-center gap-3">
@@ -1089,6 +1340,10 @@ export default function CreativeTab({ campaign, creatives = [] }) {
           })}
         </div>
       </section>
+      <UpgradeModal
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+      />
     </div>
   );
 }

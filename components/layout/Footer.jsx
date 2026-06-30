@@ -5,7 +5,15 @@ const productLinks = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Campaigns", href: "/dashboard/campaings" },
   { label: "Campaign Starters", href: "/dashboard/templates" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Features", href: "/#features" },
+];
+
+const resourceLinks = [
+  { label: "FAQ", href: "/pricing#faq" },
+  { label: "Contact", href: "mailto:hello@marketing-os.app" },
+  { label: "Roadmap", href: "/pricing#roadmap" },
+  { label: "Documentation", href: "/pricing#docs" },
 ];
 
 const legalLinks = [
@@ -17,7 +25,7 @@ function Footer() {
   return (
     <footer className="border-t border-base px-6 py-12">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
+        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <div className="mb-4 flex items-center gap-3">
               <Logo />
@@ -48,6 +56,22 @@ function Footer() {
             <h4 className="mb-4 font-semibold">Legal</h4>
             <ul className="space-y-2">
               {legalLinks.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm font-semibold text-slate-600 transition-colors hover:text-[#3B3CFF] dark:text-slate-400 dark:hover:text-indigo-300"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="mb-4 font-semibold">Resources</h4>
+            <ul className="space-y-2">
+              {resourceLinks.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}

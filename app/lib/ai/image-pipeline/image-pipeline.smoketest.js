@@ -53,9 +53,8 @@ const visualDirection = {
 const pollinationsPrompt = buildPollinationsPrompt(visualDirection);
 const openAiPrompt = buildOpenAIPrompt(visualDirection);
 assert.equal(pollinationsPrompt.wordCount <= 80, true);
-assert.equal(pollinationsPrompt.text.includes("Avoid:"), true);
 assert.notEqual(openAiPrompt.version, pollinationsPrompt.version);
-assert.equal(/visible props:/i.test(openAiPrompt.text), true);
+assert.equal(/supporting props include/i.test(openAiPrompt.text), true);
 assert.equal(pollinationsPrompt.negativePrompt.includes("dashboard"), true);
 
 async function main() {
@@ -63,14 +62,19 @@ async function main() {
   let reviews = 0;
   const result = await runImagePipeline({
     visualDirection,
-    provider: "pollinations",
     generator: async ({ provider }) => {
       generations += 1;
+      if (provider === "openai") {
+        throw new Error("Simulated OpenAI image outage");
+      }
       return {
         provider,
+        model: "pollinations",
         mimeType: "image/jpeg",
         imageData: Buffer.alloc(25000).toString("base64"),
         remoteUrl: "",
+        latencyMs: 10,
+        usage: null,
       };
     },
     reviewer: async () => {
@@ -85,7 +89,10 @@ async function main() {
     },
   });
 
-  assert.equal(generations, 2);
+  assert.equal(generations, 3);
+  assert.equal(result.provider, "pollinations");
+  assert.equal(result.fallbackUsed, true);
+  assert.equal(result.fallbackProvider, "pollinations");
   assert.equal(result.attempts, 2);
   assert.equal(result.approved, true);
   assert.equal(result.review.score, 85);

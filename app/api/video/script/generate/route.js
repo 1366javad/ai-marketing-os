@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runGemini } from "@/app/lib/ai/legacy/providers/gemini";
+import { runTextProvider } from "@/app/lib/ai/providers";
 
 export async function POST(request) {
   try {
@@ -30,7 +30,7 @@ Include: hook, scene-by-scene script, voiceover, on-screen text, and CTA.
 `;
     }
 
-    const result = await runGemini({
+    const result = await runTextProvider({
       systemPrompt,
       userPrompt,
       temperature: 0.7,

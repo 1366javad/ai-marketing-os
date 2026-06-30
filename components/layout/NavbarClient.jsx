@@ -16,6 +16,7 @@ const navLink = [
   { name: "Campaigns", href: "/dashboard/campaings" },
   { name: "Research", href: "/dashboard/research" },
   { name: "Campaign Starters", href: "/dashboard/templates" },
+  { name: "Pricing", href: "/pricing" },
   { name: "Analytics", href: "/dashboard/analytics" },
 ];
 

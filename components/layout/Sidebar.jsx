@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -44,6 +44,48 @@ const navItems = [
 
 export default function Sidebar({ currentPageName }) {
   const pathname = usePathname();
+  const [plan, setPlan] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadPlan() {
+      try {
+        const response = await fetch("/api/me/plan", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        setPlan(payload);
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          console.error("Sidebar plan lookup failed:", error);
+        }
+      }
+    }
+
+    loadPlan();
+
+    return () => controller.abort();
+  }, []);
+
+  const planSummary = useMemo(() => {
+    const planId = String(plan?.plan || "free").toLowerCase();
+    const planName = plan?.name || "Free";
+    const monthlyCredits = Number(
+      plan?.limits?.monthlyCredits || plan?.monthlyCredits || 100,
+    );
+
+    return {
+      badge: planId === "pro_plus" ? "Pro+" : planName,
+      credits: Number.isFinite(monthlyCredits)
+        ? monthlyCredits.toLocaleString()
+        : "100",
+    };
+  }, [plan]);
 
   const isActive = (href) => {
     const pageName = href.replace("/", "");
@@ -103,11 +145,11 @@ export default function Sidebar({ currentPageName }) {
             </p>
             <span className="inline-flex items-center gap-1 rounded-full border border-[#3B3CFF]/20 bg-[#3B3CFF]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#3B3CFF] dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-300">
               <Zap className="h-3 w-3" />
-              Free
+              {planSummary.badge}
             </span>
           </div>
           <p className="text-[10px] leading-snug text-gray-500 dark:text-gray-400">
-            100 daily credits included
+            {planSummary.credits} monthly credits included
           </p>
         </div>
       </div>

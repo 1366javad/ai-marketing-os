@@ -119,7 +119,21 @@ function mapCreativeMemoryEvent(row) {
       title: payload.title || row.summary || "Creative Concept",
       concept: payload.concept || row.summary || "",
       metadata: {
+        ...(payload.metadata || {}),
         provider: payload.provider || "memory",
+        textProvider: payload.textProvider || payload.metadata?.textProvider || "",
+        imageProvider:
+          payload.asset?.provider ||
+          payload.imageProvider ||
+          payload.metadata?.imageProvider ||
+          "",
+        imageFallbackUsed: Boolean(
+          payload.imageFallbackUsed || payload.metadata?.imageFallbackUsed,
+        ),
+        imageFallbackProvider:
+          payload.imageFallbackProvider ||
+          payload.metadata?.imageFallbackProvider ||
+          "",
         confidence: payload.confidence || row.confidence || 0,
         generatedAt: payload.generatedAt || row.created_at || "",
       },
@@ -131,6 +145,12 @@ function mapCreativeMemoryEvent(row) {
     metadata: {
       memoryEvent: row,
       provider: payload.provider || "memory",
+      textProvider: payload.textProvider || payload.metadata?.textProvider || "",
+      imageProvider:
+        payload.asset?.provider ||
+        payload.imageProvider ||
+        payload.metadata?.imageProvider ||
+        "",
       confidence: payload.confidence || row.confidence || 0,
       generatedAt: payload.generatedAt || row.created_at || "",
     },
@@ -152,7 +172,17 @@ function mapCreativeOutput(row) {
         imageUrl: row.content || "",
       },
       metadata: {
+        ...(row.metadata || {}),
+        ...(payload.metadata || {}),
         provider: row.metadata?.provider || payload.provider || "memory",
+        textProvider:
+          row.metadata?.textProvider || payload.textProvider || payload.metadata?.textProvider || "",
+        imageProvider:
+          payload.asset?.provider ||
+          row.metadata?.imageProvider ||
+          payload.imageProvider ||
+          payload.metadata?.imageProvider ||
+          "",
         confidence: row.metadata?.confidence || payload.confidence || 0,
         generatedAt:
           row.metadata?.generatedAt || payload.generatedAt || row.created_at || "",

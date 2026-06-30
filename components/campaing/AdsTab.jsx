@@ -14,6 +14,7 @@ import {
   FileText,
   Linkedin,
   Loader2,
+  Lock,
   Megaphone,
   PackageCheck,
   Search,
@@ -23,6 +24,8 @@ import {
 
 import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
+import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
 
 const ADS_TASKS = [
   {
@@ -36,10 +39,10 @@ const ADS_TASKS = [
   },
   {
     id: "meta_ads",
-    label: "Meta Ads",
-    title: "Meta Ads",
+    label: "Instagram Ad",
+    title: "Instagram Ad",
     description:
-      "Create primary text, headlines, conversion angles, and platform-ready CTAs.",
+      "Create Instagram-ready primary text, headlines, conversion angles, and CTAs.",
     icon: Facebook,
     iconColor: "text-indigo-500 dark:text-indigo-400",
   },
@@ -79,7 +82,7 @@ const PLATFORM_TASK_IDS = [
   "tiktok_ads",
 ];
 
-export default function AdsTab({ campaign, ads = [] }) {
+export default function AdsTab({ campaign, ads = [], plan = "free" }) {
   const searchParams = useSearchParams();
   const { streamObject } = useTextStream();
   const viewerRef = useRef(null);
@@ -100,6 +103,7 @@ export default function AdsTab({ campaign, ads = [] }) {
   const [prompt, setPrompt] = useState("");
   const [copied, setCopied] = useState(false);
   const [isReportExpanded, setIsReportExpanded] = useState(false);
+  const [upgradeGate, setUpgradeGate] = useState(null);
 
   useEffect(() => {
     setLocalOutputs(ads || []);
@@ -125,9 +129,9 @@ export default function AdsTab({ campaign, ads = [] }) {
       if (!map[type]) map[type] = item;
     }
 
-    const platformOutputs = PLATFORM_TASK_IDS.map((taskId) => map[taskId]).filter(
-      Boolean,
-    );
+    const platformOutputs = PLATFORM_TASK_IDS.map(
+      (taskId) => map[taskId],
+    ).filter(Boolean);
     if (platformOutputs.length === PLATFORM_TASK_IDS.length) {
       map.campaign_package = buildCampaignPackageOutput(platformOutputs);
     }
@@ -148,6 +152,7 @@ export default function AdsTab({ campaign, ads = [] }) {
   const validationMessage =
     "Complete campaign goal, audience, and offer before generating ads.";
   const activeProvider = activeReport?.metadata?.provider || "";
+  const activeAgentLabel = "Ads Agent";
   const activeGeneratedAt =
     activeReport?.metadata?.generatedAt ||
     activeStoredOutput?.created_at ||
@@ -166,12 +171,15 @@ export default function AdsTab({ campaign, ads = [] }) {
         offer,
         budget,
         prompt,
+        regenerate: Boolean(latestByTask[taskId]),
       }),
     });
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || data.error || `${taskId} generation failed.`);
+      throw new Error(
+        data.message || data.error || `${taskId} generation failed.`,
+      );
     }
 
     const report = data.adsOutput;
@@ -195,11 +203,27 @@ export default function AdsTab({ campaign, ads = [] }) {
 
   const generateAds = async () => {
     if (!hasRequiredContext || isActiveLoading) return;
+    const featureGate = getFeatureGate({
+      plan,
+      module: "ads",
+      feature: selectedTask,
+    });
+
+    if (!featureGate.allowed) {
+      setUpgradeGate(featureGate);
+      return;
+    }
+
+    if (activeStoredOutput) {
+      const regenerateGate = getActionGate({ plan, action: "regenerate" });
+      if (!regenerateGate.allowed) {
+        setUpgradeGate(regenerateGate);
+        return;
+      }
+    }
 
     const requestedTasks =
-      selectedTask === "campaign_package"
-        ? PLATFORM_TASK_IDS
-        : [selectedTask];
+      selectedTask === "campaign_package" ? PLATFORM_TASK_IDS : [selectedTask];
     setLoading((current) => ({
       ...current,
       campaign_package: selectedTask === "campaign_package",
@@ -279,7 +303,9 @@ export default function AdsTab({ campaign, ads = [] }) {
       if (failed.length > 0) {
         const failedLabels = failed
           .map(({ taskId }) => {
-            return ADS_TASKS.find((task) => task.id === taskId)?.label || taskId;
+            return (
+              ADS_TASKS.find((task) => task.id === taskId)?.label || taskId
+            );
           })
           .join(", ");
         setErrors((current) => ({
@@ -312,6 +338,11 @@ export default function AdsTab({ campaign, ads = [] }) {
 
   const exportReport = () => {
     if (!activeReport) return;
+    const gate = getActionGate({ plan, action: "export" });
+    if (!gate.allowed) {
+      setUpgradeGate(gate);
+      return;
+    }
     const blob = new Blob([formatAdsText(activeReport)], {
       type: "text/plain",
     });
@@ -340,12 +371,24 @@ export default function AdsTab({ campaign, ads = [] }) {
             const Icon = task.icon;
             const isActive = selectedTask === task.id;
             const hasOutput = !!latestByTask[task.id];
+            const gate = getFeatureGate({
+              plan,
+              module: "ads",
+              feature: task.id,
+            });
 
             return (
               <button
                 key={task.id}
                 type="button"
-                onClick={() => setSelectedTask(task.id)}
+                onClick={() => {
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
+
+                  setSelectedTask(task.id);
+                }}
                 className={
                   isActive
                     ? "group relative inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-200 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
@@ -354,14 +397,18 @@ export default function AdsTab({ campaign, ads = [] }) {
               >
                 <Icon className={`h-4 w-4 ${task.iconColor}`} />
                 <span>{task.label}</span>
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    hasOutput
-                      ? "bg-emerald-500/80"
-                      : "bg-slate-300 dark:bg-white/15"
-                  }`}
-                  aria-hidden="true"
-                />
+                {!gate.allowed ? (
+                  <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
+                ) : (
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      hasOutput
+                        ? "bg-emerald-500/80"
+                        : "bg-slate-300 dark:bg-white/15"
+                    }`}
+                    aria-hidden="true"
+                  />
+                )}
               </button>
             );
           })}
@@ -440,7 +487,7 @@ export default function AdsTab({ campaign, ads = [] }) {
             type="button"
             disabled={!hasRequiredContext || isActiveLoading}
             onClick={generateAds}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:text-white/40"
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-primary-500 disabled:text-slate-400 dark:disabled:text-white/40"
           >
             {isActiveLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -496,16 +543,20 @@ export default function AdsTab({ campaign, ads = [] }) {
             <div ref={viewerRef} className="flex max-h-[640px] flex-col p-6">
               <div className="border-b border-slate-200 pb-4 dark:border-white/10">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-white/40">
-                  <ActiveIcon className={`h-3.5 w-3.5 ${activeTask.iconColor}`} />
+                  <ActiveIcon
+                    className={`h-3.5 w-3.5 ${activeTask.iconColor}`}
+                  />
                   Ads Report
                 </div>
-                <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                  {activeReport.title || activeTask.title}
-                </h3>
+                {hasText(activeReport.title) && (
+                  <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                    {activeReport.title}
+                  </h3>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-white/40">
                   {activeProvider && activeProvider !== "memory" && (
                     <span className="inline-flex h-9 items-center rounded-lg border border-slate-200 px-3 dark:border-white/10">
-                      {activeProvider}
+                      {activeAgentLabel}
                     </span>
                   )}
                   {isValidDate(activeGeneratedAt) && (
@@ -543,9 +594,11 @@ export default function AdsTab({ campaign, ads = [] }) {
                     : "max-h-[300px] overflow-hidden"
                 }`}
               >
-                <ReportSection title="Summary">
-                  <p>{activeReport.summary}</p>
-                </ReportSection>
+                {hasText(activeReport.summary) && (
+                  <ReportSection title="Summary">
+                    <p>{activeReport.summary}</p>
+                  </ReportSection>
+                )}
                 <ReportList title="Headlines" items={activeReport.headlines} />
                 <ReportList
                   title="Primary Text"
@@ -620,6 +673,17 @@ export default function AdsTab({ campaign, ads = [] }) {
                 key={task.id}
                 type="button"
                 onClick={() => {
+                  const gate = getFeatureGate({
+                    plan,
+                    module: "ads",
+                    feature: task.id,
+                  });
+
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
+
                   setSelectedTask(task.id);
                   setIsReportExpanded(false);
                 }}
@@ -650,6 +714,7 @@ export default function AdsTab({ campaign, ads = [] }) {
           })}
         </div>
       </section>
+      <UpgradeModal gate={upgradeGate} onClose={() => setUpgradeGate(null)} />
     </div>
   );
 }
@@ -708,6 +773,8 @@ const ReportState = React.forwardRef(function ReportState(
 });
 
 function ReportSection({ title, children }) {
+  if (!hasRenderableContent(children)) return null;
+
   return (
     <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
       <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -721,15 +788,19 @@ function ReportSection({ title, children }) {
 }
 
 function ReportList({ title, items }) {
-  if (!Array.isArray(items) || items.length === 0) return null;
+  const safeItems = Array.isArray(items)
+    ? items.map((item) => stringifyItem(item)).filter(Boolean)
+    : [];
+
+  if (safeItems.length === 0) return null;
 
   return (
     <ReportSection title={title}>
       <ul className="space-y-2">
-        {items.map((item, index) => (
+        {safeItems.map((item, index) => (
           <li key={`${title}-${index}`} className="flex gap-2">
             <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-primary-500" />
-            <span>{stringifyItem(item)}</span>
+            <span>{item}</span>
           </li>
         ))}
       </ul>
@@ -737,9 +808,17 @@ function ReportList({ title, items }) {
   );
 }
 
+function hasRenderableContent(value) {
+  if (typeof value === "string") return hasText(value);
+  if (Array.isArray(value)) return value.some(hasRenderableContent);
+  if (!value || typeof value !== "object") return Boolean(value);
+  return true;
+}
+
 function extractAdsReport(output) {
   if (!output) return null;
-  const report = output.adsOutput || output.metadata?.memoryEvent?.payload || {};
+  const report =
+    output.adsOutput || output.metadata?.memoryEvent?.payload || {};
 
   return {
     ...report,
@@ -861,6 +940,8 @@ function normalizeTask(value) {
     google: "google_ads",
     meta: "meta_ads",
     facebook: "meta_ads",
+    instagram: "meta_ads",
+    instagram_ad: "meta_ads",
     linkedin: "linkedin_ads",
     tiktok: "tiktok_ads",
     package: "campaign_package",
@@ -869,7 +950,7 @@ function normalizeTask(value) {
 
   return ADS_TASKS.some((item) => item.id === normalized)
     ? normalized
-    : "google_ads";
+    : "meta_ads";
 }
 
 function normalizeList(value) {
@@ -892,9 +973,9 @@ function stringifyItem(item) {
 function isValidReport(report) {
   return Boolean(
     report?.summary ||
-      report?.headlines?.length ||
-      report?.primaryTexts?.length ||
-      report?.descriptions?.length,
+    report?.headlines?.length ||
+    report?.primaryTexts?.length ||
+    report?.descriptions?.length,
   );
 }
 

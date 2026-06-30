@@ -72,8 +72,8 @@ function UsageView({
     () => groupUsage(filteredUsage, "module"),
     [filteredUsage],
   );
-  const providerUsage = useMemo(
-    () => groupUsage(filteredUsage, "provider"),
+  const engineUsage = useMemo(
+    () => groupUsage(filteredUsage.map((event) => ({ ...event, engine: "ai_engine" })), "engine"),
     [filteredUsage],
   );
   const recentActivity = filteredUsage.slice(0, 8);
@@ -91,7 +91,7 @@ function UsageView({
       color: "from-purple-500 to-pink-500",
       value: filteredStats.tokens.toLocaleString(),
       label: "Tokens Used",
-      desc: "Provider-reported tokens",
+      desc: "AI-reported tokens",
     },
     {
       icon: Activity,
@@ -103,8 +103,8 @@ function UsageView({
     {
       icon: Server,
       color: "from-emerald-500 to-teal-500",
-      value: filteredStats.providers,
-      label: "Providers",
+      value: filteredStats.engines,
+      label: "AI Engines",
       desc: "Active in this period",
     },
   ];
@@ -115,7 +115,7 @@ function UsageView({
       "Campaign",
       "Module",
       "Artifact",
-      "Provider",
+      "Engine",
       "Model",
       "Credits",
       "Tokens",
@@ -126,7 +126,7 @@ function UsageView({
       event.campaignName,
       event.module,
       event.artifact,
-      event.provider,
+      "AI Engine",
       event.model,
       event.credits,
       event.tokens,
@@ -157,7 +157,7 @@ function UsageView({
                 Usage
               </h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Account consumption across AI modules and providers.
+                Account consumption across AI modules.
               </p>
             </div>
 
@@ -289,9 +289,9 @@ function UsageView({
             />
             <UsageBreakdown
               icon={Server}
-              title="Provider Usage"
-              description="Final provider that completed each request"
-              rows={providerUsage}
+              title="AI Engine Usage"
+              description="Requests completed by the internal AI engine"
+              rows={engineUsage}
               colorFor={() => "bg-[#3B3CFF]"}
             />
           </section>
@@ -316,7 +316,7 @@ function UsageView({
                       "Time",
                       "Campaign",
                       "Module",
-                      "Provider",
+                      "Engine",
                       "Credits",
                       "Tokens",
                       "Status",
@@ -368,7 +368,7 @@ function UsageView({
                         </td>
                         <td className="px-5 py-3.5">
                           <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-600 dark:bg-gray-800 dark:text-slate-400">
-                            {event.provider}
+                            AI Engine
                           </span>
                         </td>
                         <td className="px-5 py-3.5 text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
@@ -494,19 +494,17 @@ function StatusBadge({ status }) {
 }
 
 function summarizeEvents(events) {
-  const providers = new Set();
   const summary = events.reduce(
     (result, event) => {
       result.requests += 1;
       result.tokens += Number(event.tokens || 0);
       result.credits += Number(event.credits || 0);
-      if (event.provider) providers.add(event.provider);
       return result;
     },
     { requests: 0, tokens: 0, credits: 0 },
   );
 
-  return { ...summary, providers: providers.size };
+  return { ...summary, engines: events.length > 0 ? 1 : 0 };
 }
 
 function groupUsage(events, key) {

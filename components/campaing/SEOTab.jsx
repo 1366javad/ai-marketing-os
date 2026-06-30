@@ -16,6 +16,7 @@ import {
   HelpCircle,
   Layers,
   Loader2,
+  Lock,
   Map,
   Search,
   Sparkles,
@@ -25,6 +26,11 @@ import {
 import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
+import {
+  getActionGate,
+  getFeatureGate,
+} from "@/app/lib/plans/planPolicy";
 
 const sections = [
   {
@@ -319,25 +325,21 @@ function ReportList({ title, items }) {
     ? items.map((item) => stringifyReportItem(item)).filter(Boolean)
     : [];
 
+  if (safeItems.length === 0) return null;
+
   return (
     <section className="rounded-lg border border-slate-200 p-4 dark:border-white/10">
       <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
         {title}
       </h4>
-      {safeItems.length > 0 ? (
-        <ul className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-          {safeItems.map((item, index) => (
-            <li key={`${title}-${index}`} className="flex gap-2">
-              <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-sm text-slate-500 dark:text-white/40">
-          No {title.toLowerCase()} available.
-        </p>
-      )}
+      <ul className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
+        {safeItems.map((item, index) => (
+          <li key={`${title}-${index}`} className="flex gap-2">
+            <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -358,13 +360,7 @@ function StructuredList({ items }) {
     ? items.map(cleanUserFacingItem).filter(Boolean)
     : [];
 
-  if (safeItems.length === 0) {
-    return (
-      <p className="text-sm text-slate-500 dark:text-white/40">
-        No items available.
-      </p>
-    );
-  }
+  if (safeItems.length === 0) return null;
 
   return (
     <ul className="space-y-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
@@ -390,8 +386,17 @@ function cleanUserFacingItem(item) {
     .replace(/^ensure each article\s+/i, "Each article should ");
 }
 
+function normalizeRenderableList(value) {
+  const items = Array.isArray(value) ? value : [value];
+  return items.filter((item) => stringifyReportItem(item));
+}
+
 function KeywordReport({ title, items }) {
-  const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
+  const safeItems = Array.isArray(items)
+    ? items.filter((item) => stringifyReportItem(item))
+    : [];
+
+  if (safeItems.length === 0) return null;
 
   return (
     <section>
@@ -441,9 +446,14 @@ function KeywordReport({ title, items }) {
 }
 
 function KeywordClusterReport({ items }) {
+  const safeItems = Array.isArray(items)
+    ? items.filter((item) => stringifyReportItem(item))
+    : [];
+  if (safeItems.length === 0) return null;
+
   return (
     <section className="space-y-3">
-      {(items || []).map((item, index) => (
+      {safeItems.map((item, index) => (
         <div
           key={index}
           className="rounded-lg border border-slate-200 p-4 dark:border-white/10"
@@ -486,9 +496,14 @@ function formatInternalLink(item) {
 }
 
 function TopicClusterReport({ items }) {
+  const safeItems = Array.isArray(items)
+    ? items.filter((item) => stringifyReportItem(item))
+    : [];
+  if (safeItems.length === 0) return null;
+
   return (
     <section className="space-y-4">
-      {(items || []).map((item, index) => {
+      {safeItems.map((item, index) => {
         const articles =
           getItemValue(item, ["supportingArticles", "articles"]) || [];
         const internalLinks =
@@ -498,6 +513,11 @@ function TopicClusterReport({ items }) {
             "internalLinkingStrategy",
           ]) || [];
         const ctas = getItemValue(item, ["ctas", "cta", "ctaStrategy"]) || [];
+        const safeArticles = normalizeRenderableList(articles);
+        const safeInternalLinks = normalizeRenderableList(
+          internalLinks,
+        ).map(formatInternalLink);
+        const safeCtas = normalizeRenderableList(ctas);
 
         return (
           <div
@@ -513,29 +533,30 @@ function TopicClusterReport({ items }) {
                   `Topic Cluster ${index + 1}`}
               </h4>
             </div>
-            <div className="border-t border-slate-200 pt-4 dark:border-white/10">
-              <div className="mb-2 text-xs font-medium uppercase text-slate-500 dark:text-white/40">
-                Supporting Articles
+            {safeArticles.length > 0 && (
+              <div className="border-t border-slate-200 pt-4 dark:border-white/10">
+                <div className="mb-2 text-xs font-medium uppercase text-slate-500 dark:text-white/40">
+                  Supporting Articles
+                </div>
+                <StructuredList items={safeArticles} />
               </div>
-              <StructuredList items={Array.isArray(articles) ? articles : [articles]} />
-            </div>
-            <div className="border-t border-slate-200 pt-4 dark:border-white/10">
-              <div className="mb-2 text-xs font-medium uppercase text-slate-500 dark:text-white/40">
-                Internal Linking Strategy
+            )}
+            {safeInternalLinks.length > 0 && (
+              <div className="border-t border-slate-200 pt-4 dark:border-white/10">
+                <div className="mb-2 text-xs font-medium uppercase text-slate-500 dark:text-white/40">
+                  Internal Linking Strategy
+                </div>
+                <StructuredList items={safeInternalLinks} />
               </div>
-              <StructuredList
-                items={(Array.isArray(internalLinks)
-                  ? internalLinks
-                  : [internalLinks]
-                ).map(formatInternalLink)}
-              />
-            </div>
-            <div className="border-t border-slate-200 pt-4 dark:border-white/10">
-              <div className="mb-2 text-xs font-medium uppercase text-slate-500 dark:text-white/40">
-                CTA Strategy
+            )}
+            {safeCtas.length > 0 && (
+              <div className="border-t border-slate-200 pt-4 dark:border-white/10">
+                <div className="mb-2 text-xs font-medium uppercase text-slate-500 dark:text-white/40">
+                  CTA Strategy
+                </div>
+                <StructuredList items={safeCtas} />
               </div>
-              <StructuredList items={Array.isArray(ctas) ? ctas : [ctas]} />
-            </div>
+            )}
           </div>
         );
       })}
@@ -544,9 +565,14 @@ function TopicClusterReport({ items }) {
 }
 
 function MetaDescriptionReport({ items }) {
+  const safeItems = Array.isArray(items)
+    ? items.filter((item) => stringifyReportItem(item))
+    : [];
+  if (safeItems.length === 0) return null;
+
   return (
     <section className="space-y-3">
-      {(items || []).map((item, index) => (
+      {safeItems.map((item, index) => (
         <div
           key={index}
           className="rounded-lg border border-slate-200 p-4 dark:border-white/10"
@@ -567,9 +593,14 @@ function MetaDescriptionReport({ items }) {
 }
 
 function FaqReport({ items }) {
+  const safeItems = Array.isArray(items)
+    ? items.filter((item) => stringifyReportItem(item))
+    : [];
+  if (safeItems.length === 0) return null;
+
   return (
     <section className="space-y-3">
-      {(items || []).map((item, index) => (
+      {safeItems.map((item, index) => (
         <div
           key={index}
           className="rounded-lg border border-slate-200 p-4 dark:border-white/10"
@@ -674,7 +705,7 @@ function SeoReportSections({ report, sectionId }) {
   }
 }
 
-export default function SEOTab({ campaign, seoOutputs = [] }) {
+export default function SEOTab({ campaign, seoOutputs = [], plan = "free" }) {
   const router = useRouter();
   const { streamObject } = useTextStream();
   const viewerRef = useRef(null);
@@ -685,6 +716,7 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
   const [selectedSection, setSelectedSection] = useState("keywords");
   const [direction, setDirection] = useState("");
   const [isReportExpanded, setIsReportExpanded] = useState(false);
+  const [upgradeGate, setUpgradeGate] = useState(null);
 
   useEffect(() => {
     setLocalOutputs(seoOutputs || []);
@@ -763,8 +795,28 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
 
   const generateSection = async (sectionId) => {
     const section = sections.find((item) => item.id === sectionId);
+    const featureGate = getFeatureGate({
+      plan,
+      module: "seo",
+      feature: sectionId,
+    });
 
     if (!campaign || !section || !hasCampaignContext) return;
+    if (!featureGate.allowed) {
+      setUpgradeGate(featureGate);
+      return;
+    }
+
+    const existingOutput = findLatestOutputForSection(localOutputs, sectionId, {
+      includePending: true,
+    });
+    if (existingOutput) {
+      const regenerateGate = getActionGate({ plan, action: "regenerate" });
+      if (!regenerateGate.allowed) {
+        setUpgradeGate(regenerateGate);
+        return;
+      }
+    }
 
     setLoading((prev) => ({
       ...prev,
@@ -791,6 +843,7 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
           campaignId: campaign.id,
           section: sectionId,
           prompt,
+          regenerate: Boolean(existingOutput),
         }),
       });
 
@@ -843,6 +896,7 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
   const activeGeneratedAt = activeReport?.metadata?.generatedAt || "";
   const shouldShowProviderBadge =
     activeProvider && activeProvider.toLowerCase() !== "memory";
+  const activeAgentLabel = "SEO Agent";
   const shouldShowConfidenceBadge = activeConfidence > 0;
   const shouldShowGeneratedAtBadge =
     shouldShowProviderBadge && Number.isFinite(Date.parse(activeGeneratedAt));
@@ -854,6 +908,11 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
 
   const downloadPdf = () => {
     if (!activeReportText) return;
+    const gate = getActionGate({ plan, action: "export" });
+    if (!gate.allowed) {
+      setUpgradeGate(gate);
+      return;
+    }
     exportPdf(activeTitle, activeReportText);
   };
 
@@ -873,12 +932,21 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
           {sections.map((section) => {
             const Icon = section.icon;
             const isActive = selectedSection === section.id;
+            const gate = getFeatureGate({
+              plan,
+              module: "seo",
+              feature: section.id,
+            });
 
             return (
               <button
                 key={section.id}
                 type="button"
                 onClick={() => {
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
                   setSelectedSection(section.id);
                   setIsReportExpanded(false);
                 }}
@@ -890,12 +958,16 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
               >
                 <Icon className={`h-4 w-4 ${section.iconColor}`} />
                 <span>{section.label}</span>
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    isActive ? "bg-emerald-500/80" : section.dotColor
-                  }`}
-                  aria-hidden="true"
-                ></span>
+                {!gate.allowed ? (
+                  <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
+                ) : (
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isActive ? "bg-emerald-500/80" : section.dotColor
+                    }`}
+                    aria-hidden="true"
+                  ></span>
+                )}
               </button>
             );
           })}
@@ -1049,13 +1121,15 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
                     />
                     SEO Report
                   </div>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                    {activeReport.title || activeTitle}
-                  </h3>
+                  {hasContent(activeReport.title) && (
+                    <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                      {activeReport.title}
+                    </h3>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-white/40">
                     {shouldShowProviderBadge && (
                       <span className="rounded-md border border-slate-200 px-2 py-1 dark:border-white/10">
-                        {activeProvider}
+                        {activeAgentLabel}
                       </span>
                     )}
                     {shouldShowConfidenceBadge && (
@@ -1097,14 +1171,16 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
                     : "max-h-[300px] overflow-hidden"
                 }`}
               >
-                <section>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Summary
-                  </h4>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-                    {activeReport.summary}
-                  </p>
-                </section>
+                {hasContent(activeReport.summary) && (
+                  <section>
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Summary
+                    </h4>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
+                      {activeReport.summary}
+                    </p>
+                  </section>
+                )}
 
                 <SeoReportSections
                   report={activeReport}
@@ -1222,6 +1298,17 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
                 key={item.sectionId}
                 type="button"
                 onClick={() => {
+                  const gate = getFeatureGate({
+                    plan,
+                    module: "seo",
+                    feature: item.sectionId,
+                  });
+
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
+
                   setSelectedSection(item.sectionId);
                   setIsReportExpanded(false);
                 }}
@@ -1255,6 +1342,10 @@ export default function SEOTab({ campaign, seoOutputs = [] }) {
           })}
         </div>
       </section>
+      <UpgradeModal
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+      />
     </div>
   );
 }

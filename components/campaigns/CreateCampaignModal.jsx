@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import { cn } from "@/app/lib/utils/utils";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
 
 import { X, Loader2 } from "lucide-react";
 
@@ -69,6 +70,7 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [upgradeGate, setUpgradeGate] = useState(null);
 
   const handle = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -93,6 +95,11 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (payload?.error === "feature_locked") {
+          setUpgradeGate(payload);
+          return;
+        }
+
         throw new Error(payload?.error || "Failed to create campaign");
       }
 
@@ -108,6 +115,7 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
     "w-full px-3 py-2.5 text-sm rounded-xl border outline-none transition-all dark:bg-white/[0.05] dark:border-white/[0.08] dark:text-white dark:placeholder-slate-500 dark:focus:border-[#3B3CFF]/60 dark:focus:bg-white/[0.08] bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#3B3CFF]/50 focus:ring-2 focus:ring-[#3B3CFF]/10 focus:bg-white";
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div
         className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border shadow-2xl dark:bg-dark-bg dark:border-white/[0.08]
@@ -210,5 +218,10 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
         </div>
       </div>
     </div>
+      <UpgradeModal
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+      />
+    </>
   );
 }

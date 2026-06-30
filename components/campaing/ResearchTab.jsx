@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Lock,
   Copy,
   Download,
 } from "lucide-react";
@@ -24,6 +25,11 @@ import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import MemoryApprovalButton from "@/components/memory/MemoryApprovalButton";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
+import {
+  getActionGate,
+  getFeatureGate,
+} from "@/app/lib/plans/planPolicy";
 
 const sections = [
   {
@@ -318,25 +324,21 @@ function ReportList({ title, items }) {
     ? items.map((item) => stringifyReportItem(item)).filter(Boolean)
     : [];
 
+  if (safeItems.length === 0) return null;
+
   return (
     <section>
       <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
         {title}
       </h4>
-      {safeItems.length > 0 ? (
-        <ul className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-          {safeItems.map((item, index) => (
-            <li key={`${title}-${index}`} className="flex gap-2">
-              <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-sm text-slate-500 dark:text-white/40">
-          No {title.toLowerCase()} available.
-        </p>
-      )}
+      <ul className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
+        {safeItems.map((item, index) => (
+          <li key={`${title}-${index}`} className="flex gap-2">
+            <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -359,7 +361,11 @@ function stringifyReportItem(item) {
     .join(" — ");
 }
 
-export default function ResearchTab({ campaign, researchOutputs = [] }) {
+export default function ResearchTab({
+  campaign,
+  researchOutputs = [],
+  plan = "free",
+}) {
   const router = useRouter();
   const { streamObject } = useTextStream();
   const viewerRef = useRef(null);
@@ -370,6 +376,7 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
   const [selectedSection, setSelectedSection] = useState("market");
   const [direction, setDirection] = useState("");
   const [isReportExpanded, setIsReportExpanded] = useState(false);
+  const [upgradeGate, setUpgradeGate] = useState(null);
 
   useEffect(() => {
     setLocalOutputs(researchOutputs || []);
@@ -456,8 +463,28 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
 
   const generateSection = async (sectionId) => {
     const section = sections.find((item) => item.id === sectionId);
+    const featureGate = getFeatureGate({
+      plan,
+      module: "research",
+      feature: sectionId,
+    });
 
     if (!campaign || !section || !hasCampaignContext) return;
+    if (!featureGate.allowed) {
+      setUpgradeGate(featureGate);
+      return;
+    }
+
+    const existingOutput = findLatestOutputForSection(localOutputs, sectionId, {
+      includePending: true,
+    });
+    if (existingOutput) {
+      const regenerateGate = getActionGate({ plan, action: "regenerate" });
+      if (!regenerateGate.allowed) {
+        setUpgradeGate(regenerateGate);
+        return;
+      }
+    }
 
     setLoading((prev) => ({
       ...prev,
@@ -488,6 +515,7 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
           campaignId: campaign.id,
           section: sectionId,
           prompt,
+          regenerate: Boolean(existingOutput),
         }),
       });
 
@@ -544,6 +572,7 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
   const activeGeneratedAt = activeReport?.metadata?.generatedAt || "";
   const shouldShowProviderBadge =
     activeProvider && activeProvider.toLowerCase() !== "memory";
+  const activeAgentLabel = "Research Agent";
   const shouldShowConfidenceBadge = activeConfidence > 0;
   const shouldShowGeneratedAtBadge =
     shouldShowProviderBadge && Number.isFinite(Date.parse(activeGeneratedAt));
@@ -555,6 +584,11 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
 
   const downloadPdf = () => {
     if (!activeReportText) return;
+    const gate = getActionGate({ plan, action: "export" });
+    if (!gate.allowed) {
+      setUpgradeGate(gate);
+      return;
+    }
     exportPdf(activeTitle, activeReportText);
   };
 
@@ -599,12 +633,21 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
           {sections.map((section) => {
             const Icon = section.icon;
             const isActive = selectedSection === section.id;
+            const gate = getFeatureGate({
+              plan,
+              module: "research",
+              feature: section.id,
+            });
 
             return (
               <button
                 key={section.id}
                 type="button"
                 onClick={() => {
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
                   setSelectedSection(section.id);
                   setIsReportExpanded(false);
                 }}
@@ -616,12 +659,16 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
               >
                 <Icon className={`h-4 w-4 ${section.iconColor}`} />
                 <span>{section.label}</span>
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    isActive ? "bg-emerald-500/80" : section.dotColor
-                  }`}
-                  aria-hidden="true"
-                ></span>
+                {!gate.allowed ? (
+                  <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
+                ) : (
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isActive ? "bg-emerald-500/80" : section.dotColor
+                    }`}
+                    aria-hidden="true"
+                  ></span>
+                )}
               </button>
             );
           })}
@@ -795,13 +842,15 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
                     />
                     Research Report
                   </div>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                    {activeReport.title || activeTitle}
-                  </h3>
+                  {hasContent(activeReport.title) && (
+                    <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                      {activeReport.title}
+                    </h3>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-white/40">
                     {shouldShowProviderBadge && (
                       <span className="rounded-md border border-slate-200 px-2 py-1 dark:border-white/10">
-                        {activeProvider}
+                        {activeAgentLabel}
                       </span>
                     )}
                     {shouldShowConfidenceBadge && (
@@ -843,14 +892,16 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
                     : "max-h-[300px] overflow-hidden"
                 }`}
               >
-                <section>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Summary
-                  </h4>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-                    {activeReport.summary}
-                  </p>
-                </section>
+                {hasContent(activeReport.summary) && (
+                  <section>
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Summary
+                    </h4>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
+                      {activeReport.summary}
+                    </p>
+                  </section>
+                )}
 
                 <ReportList title="Insights" items={activeReport.insights} />
                 <ReportList
@@ -977,6 +1028,17 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
                 <button
                   type="button"
                   onClick={() => {
+                    const gate = getFeatureGate({
+                      plan,
+                      module: "research",
+                      feature: item.sectionId,
+                    });
+
+                    if (!gate.allowed) {
+                      setUpgradeGate(gate);
+                      return;
+                    }
+
                     setSelectedSection(item.sectionId);
                     setIsReportExpanded(false);
                   }}
@@ -1022,6 +1084,10 @@ export default function ResearchTab({ campaign, researchOutputs = [] }) {
           })}
         </div>
       </section>
+      <UpgradeModal
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+      />
     </div>
   );
 }

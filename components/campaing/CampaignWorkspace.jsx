@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -21,6 +21,8 @@ import CreativeTab from "@/components/campaing/CreativeTab";
 import VideoTab from "@/components/campaing/VideoTab";
 import AdsTab from "@/components/campaing/AdsTab";
 import AssetsTab from "@/components/campaing/AssetsTab";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
+import { getActionGate } from "@/app/lib/plans/planPolicy";
 
 const STATUS_STYLES = {
   active: { bg: "bg-emerald-500/10", text: "text-emerald-500" },
@@ -63,12 +65,38 @@ export default function CampaignWorkspace({
   assets,
   creativeTypes,
   contentTypes,
+  userPlan,
 }) {
   const searchParams = useSearchParams();
 
   const initialTab = tabMap[searchParams.get("tab")] || "Overview";
 
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [upgradeGate, setUpgradeGate] = useState(null);
+  const [activePlan, setActivePlan] = useState(
+    userPlan?.plan || campaign?.plan || "free",
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPlan() {
+      try {
+        const response = await fetch("/api/me/plan", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (mounted && data?.plan) setActivePlan(data.plan);
+      } catch (error) {
+        console.error("Plan lookup failed:", error);
+      }
+    }
+
+    loadPlan();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (!campaign) {
     return <div>Campaign not found</div>;
@@ -171,7 +199,21 @@ export default function CampaignWorkspace({
         {TABS.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              if (tab === "Video") {
+                const gate = getActionGate({
+                  plan: activePlan,
+                  action: "video",
+                });
+
+                if (!gate.allowed) {
+                  setUpgradeGate(gate);
+                  return;
+                }
+              }
+
+              setActiveTab(tab);
+            }}
             className={cn(
               "px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px whitespace-nowrap",
               activeTab === tab
@@ -203,15 +245,22 @@ export default function CampaignWorkspace({
             campaign={campaign}
             research={research}
             researchOutputs={researchOutputs}
+            plan={activePlan}
           />
         )}
         {activeTab === "SEO" && (
-          <SEOTab campaign={campaign} seo={seo} seoOutputs={seoOutputs} />
+          <SEOTab
+            campaign={campaign}
+            seo={seo}
+            seoOutputs={seoOutputs}
+            plan={activePlan}
+          />
         )}
         {activeTab === "Content" && (
           <ContentTab
             campaign={campaign}
             outputs={contentOutputs}
+            plan={activePlan}
             contentTypes={contentTypes}
             memorySources={{
               research: researchOutputs,
@@ -226,18 +275,23 @@ export default function CampaignWorkspace({
             campaign={campaign}
             creativeTypes={creativeTypes}
             creatives={creatives}
+            plan={activePlan}
           />
         )}
         {activeTab === "Video" && (
-          <VideoTab campaign={campaign} videos={videos} />
+          <VideoTab campaign={campaign} videos={videos} plan={activePlan} />
         )}
         {activeTab === "Ads" && (
-          <AdsTab campaign={campaign} ads={ads} />
+          <AdsTab campaign={campaign} ads={ads} plan={activePlan} />
         )}
         {activeTab === "Assets" && (
           <AssetsTab campaign={campaign} assets={assets} />
         )}
       </div>
+      <UpgradeModal
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+      />
     </div>
   );
 }

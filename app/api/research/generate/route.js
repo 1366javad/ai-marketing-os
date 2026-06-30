@@ -150,6 +150,7 @@ export async function POST(request) {
         userEmail: user.email,
         module: executionPlan.module,
         artifact: executionPlan.task,
+        isRegenerate: Boolean(body.regenerate),
       });
     } catch (error) {
       logError("Credit limit check failed.", error);
@@ -237,7 +238,7 @@ export async function POST(request) {
         process.env.AI_PROVIDER || process.env.TEXT_PROVIDER || "unknown",
       modelName:
         process.env.AI_MODEL ||
-        process.env.GEMINI_MODEL ||
+        process.env.OPENAI_MODEL ||
         process.env.GROQ_MODEL ||
         "unknown",
     });
@@ -434,7 +435,6 @@ export async function POST(request) {
       });
     } catch (failUsageError) {
       logError("Usage event fail update failed in route catch.", failUsageError);
-      throw failUsageError;
     }
 
     console.error("Research Agent V2 route error:", error);

@@ -6,10 +6,16 @@ import { getCampaignCreatives } from "@/app/lib/db/creative";
 import { getCampaignVideos } from "@/app/lib/db/video";
 import { getCampaignAds } from "@/app/lib/db/ads";
 import { getCampaignAssets } from "@/app/lib/db/assets";
+import { createClient } from "@/app/lib/supabase/server";
+import { getCurrentPlanPayload } from "@/app/lib/plans/planResolver";
 import CampaignWorkspace from "@/components/campaing/CampaignWorkspace";
 
 export default async function CampaignIdPage({ params }) {
   const { campaignId } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const campaign = await getCampaignById(campaignId);
 
@@ -22,6 +28,7 @@ export default async function CampaignIdPage({ params }) {
   }
 
   const [
+    userPlan,
     research,
     researchOutputs,
     seo,
@@ -32,6 +39,7 @@ export default async function CampaignIdPage({ params }) {
     ads,
     assets,
   ] = await Promise.all([
+    getCurrentPlanPayload({ supabase, userId: user?.id }),
     getResearch(campaignId),
     getCampaignResearchOutputs(campaignId),
     getSEO(campaignId),
@@ -46,6 +54,7 @@ export default async function CampaignIdPage({ params }) {
   return (
     <CampaignWorkspace
       campaign={campaign}
+      userPlan={userPlan}
       research={research}
       researchOutputs={researchOutputs}
       seo={seo}

@@ -74,6 +74,7 @@ export async function POST(request) {
       userEmail: user.email,
       module: executionPlan.module,
       artifact: executionPlan.task,
+      isRegenerate: Boolean(body.regenerate),
     });
 
     if (!creditCheck.allowed) {
@@ -199,14 +200,18 @@ export async function POST(request) {
       memory: memoryWrite.memory,
     });
   } catch (error) {
-    await failUsageEvent({
-      supabase,
-      usageId: usage?.id,
-      error: error.message,
-      metadata: {
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-      },
-    });
+    try {
+      await failUsageEvent({
+        supabase,
+        usageId: usage?.id,
+        error: error.message,
+        metadata: {
+          stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        },
+      });
+    } catch (usageError) {
+      console.error("Ads usage failure update failed:", usageError);
+    }
     console.error("Ads Agent V2 route error:", error);
 
     return Response.json(
@@ -231,6 +236,8 @@ function normalizeAdsTask(task) {
     google_ads: "google_ads",
     meta: "meta_ads",
     facebook: "meta_ads",
+    instagram: "meta_ads",
+    instagram_ad: "meta_ads",
     meta_ads: "meta_ads",
     linkedin: "linkedin_ads",
     linkedin_ads: "linkedin_ads",

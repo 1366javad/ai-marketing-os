@@ -22,9 +22,15 @@ import {
   Copy,
   Check,
   AlertCircle,
+  Lock,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
+import {
+  getActionGate,
+  getFeatureGate,
+} from "@/app/lib/plans/planPolicy";
 
 const CONTENT_TYPES = [
   {
@@ -177,6 +183,7 @@ export default function ContentTab({
   campaign,
   outputs = [],
   memorySources = {},
+  plan = "free",
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -210,6 +217,7 @@ export default function ContentTab({
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState({});
   const [isOutputExpanded, setIsOutputExpanded] = useState(false);
+  const [upgradeGate, setUpgradeGate] = useState(null);
 
   useEffect(() => {
     setLocalOutputs(outputs || []);
@@ -242,6 +250,17 @@ export default function ContentTab({
 
   const selectContentType = (typeId) => {
     const normalizedType = getUiTypeId(typeId);
+    const gate = getFeatureGate({
+      plan,
+      module: "content",
+      feature: normalizedType,
+    });
+
+    if (!gate.allowed) {
+      setUpgradeGate(gate);
+      return;
+    }
+
     const output = findLatestOutputForType(localOutputs, normalizedType);
 
     setSelectedType(normalizedType);
@@ -262,6 +281,26 @@ export default function ContentTab({
   const generate = async () => {
     try {
       if (!canGenerate) return;
+      const featureGate = getFeatureGate({
+        plan,
+        module: "content",
+        feature: selectedType,
+      });
+
+      if (!featureGate.allowed) {
+        setUpgradeGate(featureGate);
+        return;
+      }
+
+      const existingOutput = findLatestOutputForType(localOutputs, selectedType);
+
+      if (existingOutput) {
+        const regenerateGate = getActionGate({ plan, action: "regenerate" });
+        if (!regenerateGate.allowed) {
+          setUpgradeGate(regenerateGate);
+          return;
+        }
+      }
 
       setGenerating((prev) => ({
         ...prev,
@@ -292,6 +331,7 @@ export default function ContentTab({
           title: `${campaign.name} ${currentType?.label}`,
 
           prompt: prompt.trim(),
+          regenerate: Boolean(existingOutput),
         }),
       });
 
@@ -349,6 +389,11 @@ export default function ContentTab({
 
   const downloadDocx = async () => {
     if (!content) return;
+    const gate = getActionGate({ plan, action: "export" });
+    if (!gate.allowed) {
+      setUpgradeGate(gate);
+      return;
+    }
     await exportDocx(`${campaign.name}-${currentType.label}`, content);
   };
 
@@ -370,6 +415,11 @@ export default function ContentTab({
           {CONTENT_TYPES.map((type) => {
             const Icon = type.icon;
             const active = selectedType === type.id;
+            const gate = getFeatureGate({
+              plan,
+              module: "content",
+              feature: type.id,
+            });
             return (
               <button
                 key={type.id}
@@ -386,6 +436,9 @@ export default function ContentTab({
               >
                 <Icon className="w-3.5 h-3.5" />
                 {type.label}
+                {!gate.allowed && (
+                  <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
+                )}
               </button>
             );
           })}
@@ -595,6 +648,10 @@ export default function ContentTab({
           })}
         </div>
       </section>
+      <UpgradeModal
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+      />
     </div>
   );
 }

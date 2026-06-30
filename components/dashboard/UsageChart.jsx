@@ -55,8 +55,8 @@ export default function UsageChart({ usage = [] }) {
               No usage recorded yet.
             </p>
             <p className="mt-1 max-w-md text-xs text-slate-400 dark:text-slate-500">
-              Run your first AI generation to start tracking credits, requests,
-              and providers.
+              Run your first AI generation to start tracking credits and
+              requests.
             </p>
           </div>
         ) : (

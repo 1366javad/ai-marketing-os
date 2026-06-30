@@ -179,7 +179,7 @@ function cloneValue(value) {
 
 function createStreamingDraft(value, key = "") {
   if (Array.isArray(value)) {
-    return value.map((item) => createStreamingDraft(item));
+    return [];
   }
   if (!value || typeof value !== "object") {
     if (typeof value !== "string" || PRESERVED_KEYS.has(key)) return value;
@@ -217,9 +217,13 @@ function collectStringLeaves(value, path = [], key = "") {
 
 function appendAtPath(target, path, chunk) {
   const key = path.at(-1);
-  const parent = path
-    .slice(0, -1)
-    .reduce((current, segment) => current[segment], target);
+  const parent = path.slice(0, -1).reduce((current, segment, index) => {
+    if (current[segment] == null) {
+      current[segment] =
+        typeof path[index + 1] === "number" ? [] : {};
+    }
+    return current[segment];
+  }, target);
 
   parent[key] = `${parent[key] || ""}${chunk}`;
 }

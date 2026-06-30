@@ -39,6 +39,8 @@ function normalizeCreativeOutput(providerResult, { brief } = {}) {
     metadata: {
       ...getProviderMetadata(providerResult),
       provider: providerResult?.provider || "unknown",
+      textProvider: providerResult?.provider || "unknown",
+      textModel: providerResult?.model || "unknown",
       warning: providerResult?.warning || "",
       lowConfidenceProvider:
         providerResult?.lowConfidenceProvider ||
@@ -95,6 +97,15 @@ function attachCreativeAsset(creativeOutput, imagePipelineResult) {
     metadata: {
       ...creativeOutput.metadata,
       imageProvider: imagePipelineResult.provider || "",
+      imageModel: imagePipelineResult.model || "",
+      imageFallbackUsed: Boolean(imagePipelineResult.fallbackUsed),
+      imageFallbackProvider: imagePipelineResult.fallbackProvider || "",
+      imageUsage: imagePipelineResult.usage || null,
+      imageLatencyMs: Number(imagePipelineResult.latencyMs || 0),
+      visualDirectorProvider:
+        imagePipelineResult.visualDirection?.metadata?.provider || "unknown",
+      visualDirectorModel:
+        imagePipelineResult.visualDirection?.metadata?.model || "unknown",
       imagePromptVersion: providerPrompt?.version || "",
       imageAttempts: imagePipelineResult.attempts || 1,
       creativeImageDebug: {

@@ -9,6 +9,7 @@ import {
   Target,
   X,
 } from "lucide-react";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
 
 export default function UseTemplateModal({ template, onClose }) {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function UseTemplateModal({ template, onClose }) {
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [upgradeGate, setUpgradeGate] = useState(null);
 
   const channelOptions = useMemo(
     () => [
@@ -107,6 +109,11 @@ export default function UseTemplateModal({ template, onClose }) {
       const data = await response.json();
 
       if (!response.ok) {
+        if (data.error === "feature_locked") {
+          setUpgradeGate(data);
+          return;
+        }
+
         throw new Error(data.error || "Campaign could not be created.");
       }
 
@@ -121,6 +128,7 @@ export default function UseTemplateModal({ template, onClose }) {
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm">
       <div
         role="dialog"
@@ -301,6 +309,11 @@ export default function UseTemplateModal({ template, onClose }) {
         </footer>
       </div>
     </div>
+    <UpgradeModal
+      gate={upgradeGate}
+      onClose={() => setUpgradeGate(null)}
+    />
+    </>
   );
 }
 

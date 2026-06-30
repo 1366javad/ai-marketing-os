@@ -1,4 +1,4 @@
-const { runProvider } = require("../../providers");
+const { runTextProvider } = require("../../providers");
 const {
   buildResearchPrompt,
   buildResearchRepairPrompt,
@@ -21,7 +21,7 @@ async function runResearchAgent({ brief, executionPlan }) {
     executionPlan,
   });
 
-  const providerResult = await runResearchTextProvider({
+  const providerResult = await runTextProvider({
     systemPrompt,
     userPrompt,
     temperature: 0.45,
@@ -30,24 +30,6 @@ async function runResearchAgent({ brief, executionPlan }) {
   });
 
   return normalizeResearchOutput(providerResult, { brief, executionPlan });
-}
-
-async function runResearchTextProvider(payload) {
-  try {
-    return await runProvider("groq", payload);
-  } catch (groqError) {
-    console.warn(
-      `Research Groq failed (${summarizeProviderError(groqError)}). Falling back to Pollinations Text.`,
-    );
-
-    const pollinationsResult = await runProvider("pollinations", payload);
-
-    return {
-      ...pollinationsResult,
-      warning: "Low Confidence Provider",
-      lowConfidenceProvider: true,
-    };
-  }
 }
 
 async function repairResearchOutput({
@@ -62,21 +44,15 @@ async function repairResearchOutput({
     previousOutput,
     issues,
   });
-  const providerResult = await runProvider("pollinations", {
+  const providerResult = await runTextProvider({
     systemPrompt,
     userPrompt,
     temperature: 0.25,
     maxTokens: 2400,
+    responseFormat: "json_object",
   });
 
-  return normalizeResearchOutput(
-    {
-      ...providerResult,
-      warning: "Low Confidence Provider",
-      lowConfidenceProvider: true,
-    },
-    { brief, executionPlan },
-  );
+  return normalizeResearchOutput(providerResult, { brief, executionPlan });
 }
 
 function toResearchMemoryEvent(researchOutput, { brief, executionPlan }) {
@@ -124,15 +100,6 @@ function formatResearchMarkdown(researchOutput) {
   ];
 
   return sections.join("\n");
-}
-
-function summarizeProviderError(error) {
-  const status = error?.status ? `status ${error.status}` : "no status";
-  const message = String(error?.message || "unknown error")
-    .replace(/\s+/g, " ")
-    .slice(0, 220);
-
-  return `${status}: ${message}`;
 }
 
 module.exports = {

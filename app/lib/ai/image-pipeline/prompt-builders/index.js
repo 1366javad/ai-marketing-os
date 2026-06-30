@@ -55,7 +55,7 @@ function buildProviderPromptSpec(direction = {}) {
 function renderPollinationsPrompt(spec, options = {}) {
   spec = ensurePromptSpec(spec);
   const text = naturalPhotographyPrompt(spec, {
-    maxWords: options.retry ? 78 : 110,
+    maxWords: options.retry ? 72 : 78,
     includeStyle: true,
   });
   return createPromptResult("pollinations", text, spec, "pollinations-spec-v1");

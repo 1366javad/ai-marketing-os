@@ -14,6 +14,7 @@ import {
   FileText,
   Film,
   Loader2,
+  Lock,
   PackageCheck,
   Sparkles,
   Video,
@@ -23,6 +24,11 @@ import {
 import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
+import UpgradeModal from "@/components/campaing/UpgradeModal";
+import {
+  getActionGate,
+  getFeatureGate,
+} from "@/app/lib/plans/planPolicy";
 
 const VIDEO_TASKS = [
   {
@@ -79,7 +85,7 @@ const VIDEO_TASKS = [
   },
 ];
 
-export default function VideoTab({ campaign, videos = [] }) {
+export default function VideoTab({ campaign, videos = [], plan = "free" }) {
   const searchParams = useSearchParams();
   const { streamObject } = useTextStream();
   const requestedTask = normalizeTask(searchParams.get("videoTask"));
@@ -99,6 +105,7 @@ export default function VideoTab({ campaign, videos = [] }) {
   const [direction, setDirection] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [upgradeGate, setUpgradeGate] = useState(null);
 
   useEffect(() => setLocalOutputs(videos || []), [videos]);
   useEffect(() => setSelectedTask(requestedTask), [requestedTask]);
@@ -129,6 +136,25 @@ export default function VideoTab({ campaign, videos = [] }) {
 
   const generate = async () => {
     if (!hasContext || isLoading) return;
+    const featureGate = getFeatureGate({
+      plan,
+      module: "video",
+      feature: selectedTask,
+    });
+
+    if (!featureGate.allowed) {
+      setUpgradeGate(featureGate);
+      return;
+    }
+
+    if (storedOutput) {
+      const regenerateGate = getActionGate({ plan, action: "regenerate" });
+      if (!regenerateGate.allowed) {
+        setUpgradeGate(regenerateGate);
+        return;
+      }
+    }
+
     setLoading((current) => ({ ...current, [selectedTask]: true }));
     setErrors((current) => ({ ...current, [selectedTask]: "" }));
 
@@ -146,6 +172,7 @@ export default function VideoTab({ campaign, videos = [] }) {
           duration,
           visualStyle,
           direction,
+          regenerate: Boolean(storedOutput),
         }),
       });
       const data = await response.json();
@@ -207,6 +234,11 @@ export default function VideoTab({ campaign, videos = [] }) {
 
   const downloadPdf = () => {
     if (!activeText) return;
+    const gate = getActionGate({ plan, action: "export" });
+    if (!gate.allowed) {
+      setUpgradeGate(gate);
+      return;
+    }
     exportPdf(activeReport.title || activeTask.title, activeText);
   };
 
@@ -226,11 +258,22 @@ export default function VideoTab({ campaign, videos = [] }) {
             const Icon = task.icon;
             const selected = task.id === selectedTask;
             const generated = !!latestByTask[task.id];
+            const gate = getFeatureGate({
+              plan,
+              module: "video",
+              feature: task.id,
+            });
             return (
               <button
                 key={task.id}
                 type="button"
-                onClick={() => setSelectedTask(task.id)}
+                onClick={() => {
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
+                  setSelectedTask(task.id);
+                }}
                 className={
                   selected
                     ? "inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium dark:border-white/10 dark:bg-white/[0.08] dark:text-white"
@@ -239,7 +282,9 @@ export default function VideoTab({ campaign, videos = [] }) {
               >
                 <Icon className={`h-4 w-4 ${task.iconColor}`} />
                 <span>{task.label}</span>
-                {!task.enabled ? (
+                {!gate.allowed ? (
+                  <Lock className="h-3 w-3 text-slate-400 dark:text-white/35" />
+                ) : !task.enabled ? (
                   <span className="rounded border border-amber-300/40 px-1.5 py-0.5 text-[9px] text-amber-600 dark:text-amber-300">
                     Phase 2
                   </span>
@@ -286,7 +331,7 @@ export default function VideoTab({ campaign, videos = [] }) {
           {!activeTask.enabled ? (
             <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
               Final video generation is reserved for Phase 2. The task contract
-              is visible now, but no provider call is made.
+              is visible now, but no generation call is made.
             </div>
           ) : (
             <>
@@ -378,9 +423,11 @@ export default function VideoTab({ campaign, videos = [] }) {
                   />
                   Video Output
                 </div>
-                <h3 className="mt-2 text-xl font-semibold dark:text-white">
-                  {activeReport.title}
-                </h3>
+                {hasText(activeReport.title) && (
+                  <h3 className="mt-2 text-xl font-semibold dark:text-white">
+                    {activeReport.title}
+                  </h3>
+                )}
                 <div className="mt-3 flex items-center gap-2">
                   <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300">
                     Pending Review
@@ -414,9 +461,7 @@ export default function VideoTab({ campaign, videos = [] }) {
                     : "max-h-[300px] overflow-hidden"
                 }`}
               >
-                <OutputBlock title="Summary">
-                  {activeReport.summary}
-                </OutputBlock>
+                <OutputBlock title="Summary">{activeReport.summary}</OutputBlock>
                 {activeReport.hook && (
                   <OutputBlock title="Hook">{activeReport.hook}</OutputBlock>
                 )}
@@ -425,8 +470,8 @@ export default function VideoTab({ campaign, videos = [] }) {
                     {activeReport.visualStyle}
                   </OutputBlock>
                 )}
-                {activeReport.scenes.map((scene) => (
-                  <SceneCard key={scene.scene} scene={scene} />
+                {getRenderableScenes(activeReport.scenes).map((scene, index) => (
+                  <SceneCard key={scene.scene || index} scene={scene} />
                 ))}
                 {activeReport.cta && (
                   <OutputBlock title="CTA">{activeReport.cta}</OutputBlock>
@@ -496,11 +541,22 @@ export default function VideoTab({ campaign, videos = [] }) {
           {VIDEO_TASKS.map((task) => {
             const Icon = task.icon;
             const output = latestByTask[task.id];
+            const gate = getFeatureGate({
+              plan,
+              module: "video",
+              feature: task.id,
+            });
             return (
               <button
                 key={task.id}
                 type="button"
-                onClick={() => setSelectedTask(task.id)}
+                onClick={() => {
+                  if (!gate.allowed) {
+                    setUpgradeGate(gate);
+                    return;
+                  }
+                  setSelectedTask(task.id);
+                }}
                 className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-left dark:border-white/5 dark:bg-white/[0.02]"
               >
                 <div className="flex min-w-0 items-center gap-3">
@@ -522,6 +578,10 @@ export default function VideoTab({ campaign, videos = [] }) {
           })}
         </div>
       </section>
+      <UpgradeModal
+        gate={upgradeGate}
+        onClose={() => setUpgradeGate(null)}
+      />
     </div>
   );
 }
@@ -576,6 +636,8 @@ function State({ icon: Icon, iconClass, title, description }) {
 }
 
 function OutputBlock({ title, children }) {
+  if (!hasRenderableContent(children)) return null;
+
   return (
     <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
       <h4 className="text-sm font-semibold dark:text-white">{title}</h4>
@@ -587,6 +649,8 @@ function OutputBlock({ title, children }) {
 }
 
 function SceneCard({ scene }) {
+  if (!hasRenderableScene(scene)) return null;
+
   return (
     <OutputBlock title={`Scene ${scene.scene}`}>
       <div className="space-y-2">
@@ -613,6 +677,30 @@ function SceneCard({ scene }) {
       </div>
     </OutputBlock>
   );
+}
+
+function hasRenderableContent(value) {
+  if (typeof value === "string") return hasText(value);
+  if (Array.isArray(value)) return value.some(hasRenderableContent);
+  if (!value || typeof value !== "object") return Boolean(value);
+  return true;
+}
+
+function hasRenderableScene(scene) {
+  if (!scene || typeof scene !== "object") return false;
+  return [
+    scene.heading,
+    scene.visual,
+    scene.voiceover,
+    scene.onScreenText,
+    scene.duration,
+    scene.transition,
+    scene.productionNote,
+  ].some(hasText);
+}
+
+function getRenderableScenes(scenes) {
+  return Array.isArray(scenes) ? scenes.filter(hasRenderableScene) : [];
 }
 
 function extractVideoReport(output) {

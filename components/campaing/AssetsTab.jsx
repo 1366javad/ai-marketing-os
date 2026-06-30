@@ -428,7 +428,7 @@ function AssetCard({
               label="Generated At"
               value={formatDate(asset.generatedAt)}
             />
-            <MetaItem label="Provider" value={formatProvider(asset.provider)} />
+            <MetaItem label="Source" value={formatAssetSource(asset.provider)} />
           </div>
         </div>
       </div>
@@ -699,11 +699,11 @@ function formatOutputType(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatProvider(value) {
-  const provider = String(value || "").trim();
-  if (!provider || provider === "unknown") return "Not recorded";
-  if (provider === "memory") return "Campaign Memory";
-  return provider;
+function formatAssetSource(value) {
+  const source = String(value || "").trim();
+  if (!source || source === "unknown") return "Not recorded";
+  if (source === "memory") return "Campaign Memory";
+  return "AI Generated";
 }
 
 function formatDate(value) {
@@ -739,7 +739,7 @@ function buildPdfContent(asset, campaign) {
     `Output Type: ${formatOutputType(asset.outputType)}`,
     `Status: ${STATUS_UI[asset.status]?.label || formatOutputType(asset.status)}`,
     `Generated At: ${formatDate(asset.generatedAt)}`,
-    `Provider: ${formatProvider(asset.provider)}`,
+    `Source: ${formatAssetSource(asset.provider)}`,
     "",
     asset.content || asset.url || "No content available.",
   ]

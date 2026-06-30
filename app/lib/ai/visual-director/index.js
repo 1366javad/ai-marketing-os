@@ -26,7 +26,14 @@ async function runVisualDirector({ creativeStrategy, brief, providerRunner = run
     maxTokens: 1200,
   });
 
-  return normalizeVisualDirection(result?.text, { creativeStrategy, brief });
+  return {
+    ...normalizeVisualDirection(result?.text, { creativeStrategy, brief }),
+    metadata: {
+      provider: result?.provider || "unknown",
+      model: result?.model || "unknown",
+      latencyMs: Number(result?.latencyMs || 0),
+    },
+  };
 }
 
 function buildVisualDirectorPrompt({ creativeStrategy, brief }) {
@@ -90,6 +97,9 @@ function buildVisualDirectorPrompt({ creativeStrategy, brief }) {
     "- Primary subject must not include the hero object, offer, audience label, campaign summary, or headline.",
     "- Action must not be abstract, strategic, transformational, or metaphorical.",
     "- Do not use dashboards, UI, diagrams, flowcharts, or generated text.",
+    "- For admissions or application workflows, use physical evidence such as a university/program shortlist, application checklist, deadline calendar, resume or SOP documents, and one clear hero object.",
+    "- Avoid generic office people, random hands, unreadable fake text, and generic desk stock-photo compositions.",
+    "- Reserve clean negative space for social post overlay text.",
   ].join("\n");
 
   return { systemPrompt, userPrompt };
@@ -176,13 +186,13 @@ function inferConcreteProps(creativeStrategy, brief) {
     .join(" ")
     .toLowerCase();
 
-  if (/admission|university|student|graduate|application/.test(text)) {
+  if (/questapply|admission|university|program|student|graduate|application|resume|sop/.test(text)) {
     return [
       "printed admission checklist",
+      "university program shortlist",
+      "deadline calendar",
+      "resume and SOP documents",
       "passport",
-      "university folder",
-      "calendar with highlighted deadline",
-      "organized application documents",
     ];
   }
   if (/saas|software|marketing|campaign/.test(text)) {

@@ -1,6 +1,10 @@
 import { createClient } from "@/app/lib/supabase/server";
 
 import { createCampaign } from "@/app/lib/db/campaigns";
+import {
+  checkCampaignLimit,
+  createFeatureLockedResponse,
+} from "@/app/lib/ai/usage/usageManager";
 
 export async function POST(request) {
   try {
@@ -15,6 +19,14 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    const campaignLimit = await checkCampaignLimit({
+      supabase,
+      userId: user.id,
+    });
+
+    if (!campaignLimit.allowed) {
+      return createFeatureLockedResponse(campaignLimit);
+    }
 
     const campaign = await createCampaign({
       userId: user.id,

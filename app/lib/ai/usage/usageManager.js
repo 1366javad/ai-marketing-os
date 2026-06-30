@@ -3,11 +3,23 @@ import {
   getModuleCreditCost,
   getPlanLimits,
 } from "./usagePolicy";
+import {
+  getActionGate,
+  getFeatureGate,
+  getLimitGate,
+} from "@/app/lib/plans/planPolicy";
+import { resolvePlanForUser } from "@/app/lib/plans/planResolver";
 
-const INTERNAL_TEST_USERS = ["javad.janjani1366@gmail.com"];
+const RUNNING_USAGE_ACTIVE_WINDOW_MS = 15 * 60 * 1000;
 
-export async function resolveUserPlan() {
-  return "free";
+export async function resolveUserPlan(input = {}) {
+  if (typeof input === "string") {
+    const plan = await resolvePlanForUser({ userId: input });
+    return plan.id;
+  }
+
+  const plan = await resolvePlanForUser(input);
+  return plan.id;
 }
 
 export async function getDailyUsage({ supabase, userId }) {
@@ -15,8 +27,13 @@ export async function getDailyUsage({ supabase, userId }) {
     return { creditsUsed: 0, requests: 0, events: [] };
   }
 
+  await expireStaleRunningUsage({ supabase, userId });
+
   const start = new Date();
   start.setHours(0, 0, 0, 0);
+  const activeRunningCutoff = new Date(
+    Date.now() - RUNNING_USAGE_ACTIVE_WINDOW_MS,
+  ).toISOString();
 
   const { data, error } = await supabase
     .from("ai_usage")
@@ -30,9 +47,11 @@ export async function getDailyUsage({ supabase, userId }) {
   }
 
   const events = data || [];
-  const creditsUsed = events.reduce(
-    (sum, event) =>
-      event.status === "failed" ? sum : sum + toNonNegativeInt(event.credits_used),
+  const billableEvents = events.filter((event) =>
+    isBillableUsageEvent(event, activeRunningCutoff),
+  );
+  const creditsUsed = billableEvents.reduce(
+    (sum, event) => sum + toNonNegativeInt(event.credits_used),
     0,
   );
 
@@ -50,35 +69,84 @@ export function getCreditCost({ module }) {
 export async function checkCreditLimit({
   supabase,
   userId,
-  userEmail,
   module,
   artifact,
+  isRegenerate = false,
 }) {
-  const plan = await resolveUserPlan(userId);
+  const plan = await resolveUserPlan({ supabase, userId });
   const limits = getPlanLimits(plan);
+  const featureGate = getFeatureGate({ plan, module, feature: artifact });
+
+  if (!featureGate.allowed) {
+    return {
+      allowed: false,
+      reason: "feature_locked",
+      ...featureGate,
+      dailyCredits: limits.dailyCredits,
+      usedCredits: 0,
+      remainingCredits: limits.dailyCredits,
+      requiredCredits: 0,
+      billableCredits: 0,
+      message: featureGate.message,
+    };
+  }
+
+  if (isRegenerate) {
+    const regenerateGate = getActionGate({ plan, action: "regenerate" });
+
+    if (!regenerateGate.allowed) {
+      return {
+        allowed: false,
+        reason: "feature_locked",
+        ...regenerateGate,
+        dailyCredits: limits.dailyCredits,
+        usedCredits: 0,
+        remainingCredits: limits.dailyCredits,
+        requiredCredits: 0,
+        billableCredits: 0,
+        message: regenerateGate.message,
+      };
+    }
+  }
+
   const requiredCredits = getCreditCost({ module, artifact });
   const usage = await getDailyUsage({ supabase, userId });
   const remainingCredits = Math.max(0, limits.dailyCredits - usage.creditsUsed);
-  const internalTester = isInternalTester(userEmail);
-  const nonProductionBypass = isCreditBypassEnvironment();
-  const internalBypass = internalTester || nonProductionBypass;
 
   return {
-    allowed: internalBypass || remainingCredits >= requiredCredits,
-    internalBypass,
-    internalBypassReason: internalTester
-      ? "internal_tester"
-      : nonProductionBypass
-        ? "non_production"
-        : "",
+    allowed: remainingCredits >= requiredCredits,
+    internalBypass: false,
+    internalBypassReason: "",
     plan,
     dailyCredits: limits.dailyCredits,
     usedCredits: usage.creditsUsed,
     remainingCredits,
     requiredCredits,
-    billableCredits: internalBypass ? 0 : requiredCredits,
+    billableCredits: requiredCredits,
     message: CREDIT_LIMIT_MESSAGE,
   };
+}
+
+export async function checkCampaignLimit({ supabase, userId }) {
+  const plan = await resolveUserPlan({ supabase, userId });
+  const limits = getPlanLimits(plan);
+  const currentCount = await countUserCampaigns({ supabase, userId });
+  const limitGate = getLimitGate({
+    plan,
+    limit: "campaigns",
+    currentCount,
+  });
+
+  return {
+    ...limitGate,
+    currentCount,
+    maxCampaigns: limits.maxCampaigns,
+  };
+}
+
+export async function checkActionAccess({ supabase, userId, action }) {
+  const plan = await resolveUserPlan({ supabase, userId });
+  return getActionGate({ plan, action });
 }
 
 export async function startUsageEvent({
@@ -153,6 +221,7 @@ export async function completeUsageEvent({
 }) {
   if (!supabase || !usageId) return null;
 
+  const usageRow = await getUsageAuditFields({ supabase, usageId });
   const existingMetadata = await getExistingMetadata({ supabase, usageId });
   const providerUsage = normalizeProviderUsage({ provider, model, metadata });
   const patch = {
@@ -186,13 +255,23 @@ export async function completeUsageEvent({
 
   if (!error) return data;
 
-  console.warn("Usage completion failed:", error);
-  return null;
+  logUsageUpdateFailure("Usage completion failed", {
+    usageId,
+    usageRow,
+    error,
+  });
+  throw error;
 }
 
-export async function failUsageEvent({ supabase, usageId, error, metadata = {} }) {
+export async function failUsageEvent({
+  supabase,
+  usageId,
+  error,
+  metadata = {},
+}) {
   if (!supabase || !usageId) return null;
 
+  const usageRow = await getUsageAuditFields({ supabase, usageId });
   const existingMetadata = await getExistingMetadata({ supabase, usageId });
   const { data, error: updateError } = await supabase
     .from("ai_usage")
@@ -212,8 +291,69 @@ export async function failUsageEvent({ supabase, usageId, error, metadata = {} }
 
   if (!updateError) return data;
 
-  console.warn("Usage failure update failed:", updateError);
-  return null;
+  logUsageUpdateFailure("Usage failure update failed", {
+    usageId,
+    usageRow,
+    error: updateError,
+  });
+  throw updateError;
+}
+
+export async function expireStaleRunningUsage({ supabase, userId } = {}) {
+  if (!supabase) return [];
+
+  const cutoff = new Date(
+    Date.now() - RUNNING_USAGE_ACTIVE_WINDOW_MS,
+  ).toISOString();
+  let query = supabase
+    .from("ai_usage")
+    .select("id, run_id, user_id, campaign_id, metadata")
+    .eq("status", "running")
+    .lt("created_at", cutoff);
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data: staleRows, error: selectError } = await query;
+
+  if (selectError) {
+    console.error("Stale running usage lookup failed:", {
+      userId,
+      cutoff,
+      error: selectError,
+    });
+    return [];
+  }
+
+  const rows = staleRows || [];
+
+  for (const row of rows) {
+    const metadata =
+      row.metadata && typeof row.metadata === "object" ? row.metadata : {};
+    const { error: updateError } = await supabase
+      .from("ai_usage")
+      .update({
+        status: "failed",
+        credits_used: 0,
+        metadata: {
+          ...metadata,
+          error: "stale_running_expired",
+          staleRunningExpiredAt: new Date().toISOString(),
+        },
+      })
+      .eq("id", row.id);
+
+    if (updateError) {
+      logUsageUpdateFailure("Stale running usage expiration failed", {
+        usageId: row.id,
+        usageRow: row,
+        error: updateError,
+      });
+    }
+  }
+
+  return rows;
 }
 
 async function getExistingMetadata({ supabase, usageId }) {
@@ -229,7 +369,26 @@ async function getExistingMetadata({ supabase, usageId }) {
     : {};
 }
 
+async function getUsageAuditFields({ supabase, usageId }) {
+  const { data, error } = await supabase
+    .from("ai_usage")
+    .select("id, run_id, user_id, campaign_id")
+    .eq("id", usageId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Usage audit lookup failed:", { usageId, error });
+    return null;
+  }
+
+  return data || null;
+}
+
 export function createCreditLimitResponse(creditCheck) {
+  if (creditCheck?.reason === "feature_locked") {
+    return createFeatureLockedResponse(creditCheck);
+  }
+
   return Response.json(
     {
       error: "credit_limit_reached",
@@ -244,23 +403,45 @@ export function createCreditLimitResponse(creditCheck) {
   );
 }
 
-function isInternalTester(email) {
-  const normalizedEmail = String(email || "").trim().toLowerCase();
-  return INTERNAL_TEST_USERS.includes(normalizedEmail);
+export function createFeatureLockedResponse(gate) {
+  return Response.json(
+    {
+      error: "feature_locked",
+      message:
+        gate?.message ||
+        `${gate?.featureLabel || "This feature"} is available on Pro and Pro+.`,
+      feature: gate?.feature || gate?.action || gate?.limit || "",
+      featureLabel: gate?.featureLabel || "",
+      module: gate?.module || "",
+      plan: gate?.plan || "free",
+      requiredPlan: gate?.requiredPlan || "Pro",
+      benefit: gate?.benefit || "",
+    },
+    { status: 403 },
+  );
 }
 
-function isCreditBypassEnvironment() {
-  const env = String(process.env.NODE_ENV || "").trim().toLowerCase();
-  const appEnv = String(
-    process.env.APP_ENV ||
-      process.env.NEXT_PUBLIC_APP_ENV ||
-      process.env.CONTEXT ||
-      "",
-  )
-    .trim()
-    .toLowerCase();
+function isBillableUsageEvent(event, activeRunningCutoff) {
+  const status = String(event?.status || "").toLowerCase();
 
-  return ["development", "staging"].includes(env) || appEnv === "staging";
+  if (status === "failed") return false;
+  if (status === "completed" || status === "fallback") return true;
+
+  if (status === "running") {
+    return String(event?.created_at || "") >= activeRunningCutoff;
+  }
+
+  return false;
+}
+
+function logUsageUpdateFailure(message, { usageId, usageRow, error }) {
+  console.error(message, {
+    usageId,
+    runId: usageRow?.run_id || null,
+    userId: usageRow?.user_id || null,
+    campaignId: usageRow?.campaign_id || null,
+    error,
+  });
 }
 
 async function findUsageByOperationId({ supabase, userId, operationId }) {
@@ -284,6 +465,22 @@ async function findUsageByOperationId({ supabase, userId, operationId }) {
 
   if (error) return null;
   return data || null;
+}
+
+async function countUserCampaigns({ supabase, userId }) {
+  if (!supabase || !userId) return 0;
+
+  const { count, error } = await supabase
+    .from("campaigns")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Campaign limit lookup failed:", { userId, error });
+    return 0;
+  }
+
+  return Number(count || 0);
 }
 
 function normalizeProviderUsage({ provider, model, metadata = {} }) {

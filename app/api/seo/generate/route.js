@@ -77,6 +77,7 @@ export async function POST(request) {
       userEmail: user.email,
       module: executionPlan.module,
       artifact: executionPlan.task,
+      isRegenerate: Boolean(body.regenerate),
     });
 
     if (!creditCheck.allowed) {
@@ -196,14 +197,18 @@ export async function POST(request) {
       memory: memoryWrite.memory,
     });
   } catch (error) {
-    await failUsageEvent({
-      supabase,
-      usageId: usage?.id,
-      error: error.message,
-      metadata: {
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-      },
-    });
+    try {
+      await failUsageEvent({
+        supabase,
+        usageId: usage?.id,
+        error: error.message,
+        metadata: {
+          stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        },
+      });
+    } catch (usageError) {
+      console.error("SEO usage failure update failed:", usageError);
+    }
     console.error("SEO Agent V2 route error:", error);
 
     return Response.json(

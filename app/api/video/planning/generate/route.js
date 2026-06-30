@@ -18,11 +18,19 @@ import {
   getAiErrorMessage,
   getAiErrorStatus,
 } from "@/app/lib/utils/aiErrorMessage";
-import { logUsageEvent } from "@/app/lib/ai/usage/logUsageEvent";
+import {
+  checkCreditLimit,
+  completeUsageEvent,
+  createCreditLimitResponse,
+  failUsageEvent,
+  startUsageEvent,
+} from "@/app/lib/ai/usage/usageManager";
 
 export async function POST(request) {
+  let supabase;
+  let usage;
   try {
-    const supabase = await createClient();
+    supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -79,6 +87,39 @@ export async function POST(request) {
       },
       { exists: !!campaign, status: campaign?.status || null },
     );
+    const operationId = body.operationId || crypto.randomUUID();
+    const creditCheck = await checkCreditLimit({
+      supabase,
+      userId: user.id,
+      userEmail: user.email,
+      module: executionPlan.module,
+      artifact: executionPlan.task,
+      isRegenerate: Boolean(body.regenerate),
+    });
+
+    if (!creditCheck.allowed) {
+      return createCreditLimitResponse(creditCheck);
+    }
+
+    usage = await startUsageEvent({
+      supabase,
+      userId: user.id,
+      campaignId: campaign.id,
+      runId: operationId,
+      module: executionPlan.module,
+      artifact: executionPlan.task,
+      requestType: "generation",
+      creditsUsed: creditCheck.billableCredits,
+      source: creditCheck.internalBypass ? "internal_test" : "agent_v2",
+      metadata: {
+        operationId,
+        campaignName: campaign?.name || "",
+        promptPreview: guard.normalizedPrompt?.slice(0, 240) || "",
+        internalCreditBypass: Boolean(creditCheck.internalBypass),
+        internalCreditBypassReason: creditCheck.internalBypassReason,
+      },
+    });
+
     const contextSlice = await getCampaignContextSlice(
       executionPlan.campaignId,
       "video",
@@ -112,6 +153,12 @@ export async function POST(request) {
     const quality = runQualityChecks(memoryEvent, executionPlan, brief);
 
     if (!quality.passed) {
+      await failUsageEvent({
+        supabase,
+        usageId: usage?.id,
+        error: "Generated video plan did not pass quality checks.",
+        metadata: { quality },
+      });
       return Response.json(
         {
           success: false,
@@ -185,13 +232,13 @@ export async function POST(request) {
       };
     }
 
-    await logUsageEvent({
+    await completeUsageEvent({
       supabase,
-      userId: user.id,
-      campaign,
-      module: "video",
-      artifact: task,
-      requestType: "agent_generation",
+      usageId: usage?.id,
+      provider: videoOutput.metadata?.provider,
+      model: videoOutput.metadata?.model,
+      status: "completed",
+      creditsUsed: creditCheck.billableCredits,
       metadata: videoOutput.metadata,
     });
 
@@ -207,6 +254,19 @@ export async function POST(request) {
       memory,
     });
   } catch (error) {
+    try {
+      await failUsageEvent({
+        supabase,
+        usageId: usage?.id,
+        error: error.message,
+        metadata: {
+          stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        },
+      });
+    } catch (usageError) {
+      console.error("Video planning usage failure update failed:", usageError);
+    }
+
     console.error("Video planning route error:", error);
     return Response.json(
       { success: false, error: getAiErrorMessage(error) },
