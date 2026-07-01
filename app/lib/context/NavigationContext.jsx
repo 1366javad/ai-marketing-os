@@ -9,18 +9,15 @@ import {
   useState,
 } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import NavigationProgressBar from "@/components/ui/NavigationProgressBar";
 
 const NavigationContext = createContext(null);
-const MIN_VISIBLE_MS = 500;
-const MAX_VISIBLE_MS = 15000;
 
 export function NavigationProvider({ children }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const navigationKey = `${pathname}?${searchParams.toString()}`;
   const [pendingNavigation, setPendingNavigation] = useState(null);
-  const isNavigating = Boolean(pendingNavigation);
+  const isNavigating = pendingNavigation?.from === navigationKey;
 
   const startNavigation = useCallback(() => {
     const startedAt = Date.now();
@@ -32,22 +29,8 @@ export function NavigationProvider({ children }) {
       setPendingNavigation((current) =>
         current?.startedAt === startedAt ? null : current,
       );
-    }, MAX_VISIBLE_MS);
+    }, 15000);
   }, [navigationKey]);
-
-  useEffect(() => {
-    if (!pendingNavigation || pendingNavigation.from === navigationKey) return;
-
-    const elapsed = Date.now() - pendingNavigation.startedAt;
-    const remaining = Math.max(MIN_VISIBLE_MS - elapsed, 0);
-    const timer = window.setTimeout(() => {
-      setPendingNavigation((current) =>
-        current?.startedAt === pendingNavigation.startedAt ? null : current,
-      );
-    }, remaining);
-
-    return () => window.clearTimeout(timer);
-  }, [navigationKey, pendingNavigation]);
 
   useEffect(() => {
     function handleClick(event) {
@@ -90,7 +73,7 @@ export function NavigationProvider({ children }) {
   return (
     <NavigationContext.Provider value={value}>
       {children}
-      {isNavigating && <NavigationProgressBar />}
+      {isNavigating && <NavigationIndicator />}
     </NavigationContext.Provider>
   );
 }
@@ -101,4 +84,12 @@ export function useNavigationProgress() {
     return { isNavigating: false, startNavigation: () => {} };
   }
   return context;
+}
+
+function NavigationIndicator() {
+  return (
+    <div className="fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden bg-[#3B3CFF]/15">
+      <div className="h-full w-1/3 animate-navigation-progress bg-[#3B3CFF]" />
+    </div>
+  );
 }
