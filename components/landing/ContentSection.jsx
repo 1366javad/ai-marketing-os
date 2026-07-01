@@ -590,8 +590,20 @@ function AgentActivity({ module, visibleSteps, paused }) {
                   )}
                 </div>
                 {visible && (
-                  <div className="mt-1 text-xs text-slate-500 dark:text-white/40">
-                    {isCurrent && !paused ? "Working now" : "Completed"}
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-white/40">
+                    {isCurrent && !paused ? (
+                      <>
+                        <span>{getStepProgressLabel(step)}</span>
+                        <span className="inline-flex animate-pulse text-[#3B3CFF]">
+                          ...
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        <span>Completed</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -728,6 +740,47 @@ function StreamingText({ text, targetChars, paused }) {
       )}
     </pre>
   );
+}
+
+function getStepProgressLabel(step) {
+  const normalizedStep = step.replace(/\s+/g, " ").trim();
+  const lowerStep = normalizedStep.toLowerCase();
+
+  if (lowerStep.includes("meta")) {
+    return "Generating Meta Hooks";
+  }
+
+  if (lowerStep.includes("google ad") || lowerStep.includes("retargeting")) {
+    return "Generating Ad Copy";
+  }
+
+  if (lowerStep.includes("ready") || lowerStep.includes("launch")) {
+    return "Finalizing Campaign";
+  }
+
+  if (lowerStep.startsWith("reading") || lowerStep.startsWith("using")) {
+    return normalizedStep;
+  }
+
+  if (
+    lowerStep.startsWith("generating") ||
+    lowerStep.startsWith("creating") ||
+    lowerStep.startsWith("building") ||
+    lowerStep.startsWith("drafting") ||
+    lowerStep.startsWith("writing") ||
+    lowerStep.startsWith("checking") ||
+    lowerStep.startsWith("measuring") ||
+    lowerStep.startsWith("reviewing") ||
+    lowerStep.startsWith("calculating") ||
+    lowerStep.startsWith("identifying") ||
+    lowerStep.startsWith("finding") ||
+    lowerStep.startsWith("saving") ||
+    lowerStep.startsWith("resolving")
+  ) {
+    return normalizedStep;
+  }
+
+  return `Working on ${normalizedStep}`;
 }
 
 function buildStreamOutput(module) {
