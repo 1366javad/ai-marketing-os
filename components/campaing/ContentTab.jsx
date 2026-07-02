@@ -411,7 +411,7 @@ export default function ContentTab({
         <p className="text-xs font-medium text-gray-500 mb-3">
           Select Content Type
         </p>
-        <div className="grid  gap-2 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid  gap-2 grid-cols-2 lg:grid-cols-7 ">
           {CONTENT_TYPES.map((type) => {
             const Icon = type.icon;
             const active = selectedType === type.id;
