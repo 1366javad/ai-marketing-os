@@ -242,6 +242,7 @@ export async function POST(request) {
         process.env.GROQ_MODEL ||
         "unknown",
     });
+    log("STEP 10 Before runResearchAgent.");
     log("STEP 11 Provider request started.");
     const providerStartedAt = Date.now();
     let researchOutput;
@@ -250,6 +251,7 @@ export async function POST(request) {
         brief,
         executionPlan,
       });
+      log("STEP 11 After runResearchAgent.");
       log("STEP 12 Provider request finished.", {
         responseLength: JSON.stringify(researchOutput || {}).length,
         providerLatency: Date.now() - providerStartedAt,

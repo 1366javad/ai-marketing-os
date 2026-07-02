@@ -9,6 +9,12 @@ const {
 } = require("../../campaign/memorySchema");
 
 async function runResearchAgent({ brief, executionPlan }) {
+  console.log("ENTER runResearchAgent", {
+    timestamp: new Date().toISOString(),
+    task: brief?.task || executionPlan?.task || null,
+    module: executionPlan?.module || null,
+  });
+
   if (!brief) {
     throw new Error("runResearchAgent: brief is required.");
   }
@@ -21,12 +27,35 @@ async function runResearchAgent({ brief, executionPlan }) {
     executionPlan,
   });
 
+  console.log("runResearchAgent prompt built", {
+    timestamp: new Date().toISOString(),
+    systemPromptLength: systemPrompt.length,
+    userPromptLength: userPrompt.length,
+    totalPromptLength: systemPrompt.length + userPrompt.length,
+  });
+
+  console.log("Before runTextProvider", {
+    timestamp: new Date().toISOString(),
+    temperature: 0.45,
+    maxTokens: 2400,
+    responseFormat: "json_object",
+  });
+
   const providerResult = await runTextProvider({
     systemPrompt,
     userPrompt,
     temperature: 0.45,
     maxTokens: 2400,
     responseFormat: "json_object",
+  });
+
+  console.log("After runTextProvider", {
+    timestamp: new Date().toISOString(),
+    provider: providerResult?.provider || "unknown",
+    model: providerResult?.model || "unknown",
+    textLength: String(providerResult?.text || "").length,
+    latencyMs: providerResult?.latencyMs || 0,
+    usedFallback: Boolean(providerResult?.usedFallback),
   });
 
   return normalizeResearchOutput(providerResult, { brief, executionPlan });
