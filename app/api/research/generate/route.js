@@ -25,18 +25,9 @@ import {
   startUsageEvent,
 } from "@/app/lib/ai/usage/usageManager";
 
-const ENABLE_REPAIR = false;
-
 export async function POST(request) {
   console.log("========== RESEARCH ROUTE START ==========");
   console.log(new Date().toISOString());
-
-  const t0 = Date.now();
-  function logStep(name) {
-    console.log(`[Research] ${name} (+${Date.now() - t0}ms)`);
-  }
-
-  logStep("STEP 1 Route Start");
 
   const requestStartedAt = Date.now();
   const requestId = crypto.randomUUID();
@@ -86,7 +77,6 @@ export async function POST(request) {
         userId: user?.id || null,
         authError: authError?.message || null,
       });
-      logStep("STEP 2 Auth Complete");
     } catch (error) {
       logError("STEP 4 Authentication failed.", error);
       throw error;
@@ -166,7 +156,6 @@ export async function POST(request) {
       logError("Credit limit check failed.", error);
       throw error;
     }
-    logStep("STEP 3 Credit Check Complete");
 
     if (!creditCheck.allowed) {
       log("REQUEST END Credit limit rejected request.", {
@@ -206,7 +195,6 @@ export async function POST(request) {
       logError("Usage event start failed.", error);
       throw error;
     }
-    logStep("STEP 4 Usage Started");
 
     log("STEP 6 Context Builder started.");
     let contextSlice = null;
@@ -228,7 +216,6 @@ export async function POST(request) {
       }
     }
     log("STEP 7 Context Builder finished.");
-    logStep("STEP 5 Context Built");
 
     log("STEP 8 Brief Builder started.");
     let brief;
@@ -241,7 +228,6 @@ export async function POST(request) {
         relevantEvents: contextSlice?.relevantEvents || [],
       };
       log("STEP 9 Brief Builder finished.");
-      logStep("STEP 6 Brief Built");
     } catch (error) {
       logError("STEP 9 Brief Builder failed.", error);
       throw error;
@@ -257,7 +243,6 @@ export async function POST(request) {
         "unknown",
     });
     log("STEP 11 Provider request started.");
-    logStep("STEP 7 Provider Request");
     const providerStartedAt = Date.now();
     let researchOutput;
     try {
@@ -271,7 +256,6 @@ export async function POST(request) {
         providerName: researchOutput?.metadata?.provider || "unknown",
         modelName: researchOutput?.metadata?.model || "unknown",
       });
-      logStep("STEP 8 Provider Response");
     } catch (error) {
       logError("STEP 12 Provider request failed.", error);
       throw error;
@@ -295,7 +279,6 @@ export async function POST(request) {
     try {
       quality = runQualityChecks(memoryEvent, executionPlan, brief);
       log("STEP 16 Quality Layer finished.");
-      logStep("STEP 9 Quality Check");
     } catch (error) {
       logError("STEP 16 Quality Layer failed.", error);
       throw error;
@@ -307,55 +290,42 @@ export async function POST(request) {
         issues: quality.issues,
         counts: summarizeResearchCounts(researchOutput),
       });
-      logStep("STEP 10 Repair Started");
-
-      if (ENABLE_REPAIR) {
-        console.time("REPAIR_CALL");
-        try {
-          researchOutput = await repairResearchOutput({
-            brief,
-            executionPlan,
-            previousOutput: researchOutput,
-            issues: quality.issues,
-          });
-        } catch (error) {
-          logError("Research quality repair failed during provider call.", error);
-          throw error;
-        } finally {
-          console.timeEnd("REPAIR_CALL");
-        }
-        logStep("STEP 11 Repair Finished");
-
-        log("STEP 13 Normalizer started.", { phase: "repair" });
-        try {
-          memoryEvent = toResearchMemoryEvent(researchOutput, {
-            brief,
-            executionPlan,
-          });
-          log("STEP 14 Normalizer finished.", { phase: "repair" });
-        } catch (error) {
-          logError("STEP 14 Normalizer failed.", error);
-          throw error;
-        }
-        log("STEP 15 Quality Layer started.", { phase: "repair" });
-        try {
-          quality = runQualityChecks(memoryEvent, executionPlan, brief);
-          log("STEP 16 Quality Layer finished.", { phase: "repair" });
-          logStep("STEP 9 Quality Check");
-        } catch (error) {
-          logError("STEP 16 Quality Layer failed.", error);
-          throw error;
-        }
-        console.log("Research quality repair result:", {
-          provider: researchOutput.metadata?.provider,
-          passed: quality.passed,
+      try {
+        researchOutput = await repairResearchOutput({
+          brief,
+          executionPlan,
+          previousOutput: researchOutput,
           issues: quality.issues,
-          counts: summarizeResearchCounts(researchOutput),
         });
-      } else {
-        console.warn("Research quality repair disabled for Netlify timeout debug deploy.");
-        logStep("STEP 11 Repair Finished");
+      } catch (error) {
+        logError("Research quality repair failed during provider call.", error);
+        throw error;
       }
+      log("STEP 13 Normalizer started.", { phase: "repair" });
+      try {
+        memoryEvent = toResearchMemoryEvent(researchOutput, {
+          brief,
+          executionPlan,
+        });
+        log("STEP 14 Normalizer finished.", { phase: "repair" });
+      } catch (error) {
+        logError("STEP 14 Normalizer failed.", error);
+        throw error;
+      }
+      log("STEP 15 Quality Layer started.", { phase: "repair" });
+      try {
+        quality = runQualityChecks(memoryEvent, executionPlan, brief);
+        log("STEP 16 Quality Layer finished.", { phase: "repair" });
+      } catch (error) {
+        logError("STEP 16 Quality Layer failed.", error);
+        throw error;
+      }
+      console.log("Research quality repair result:", {
+        provider: researchOutput.metadata?.provider,
+        passed: quality.passed,
+        issues: quality.issues,
+        counts: summarizeResearchCounts(researchOutput),
+      });
     }
 
     if (!quality.passed) {
@@ -392,7 +362,6 @@ export async function POST(request) {
     const markdown = formatResearchMarkdown(researchOutput);
     log("STEP 17 Memory write started.");
     let memoryWrite;
-    console.time("MEMORY_WRITE");
     try {
       memoryWrite = await safeWriteResearchMemory({
         supabase,
@@ -408,12 +377,9 @@ export async function POST(request) {
         logError,
       });
       log("STEP 18 Memory write finished.");
-      logStep("STEP 12 Memory Write");
     } catch (error) {
       logError("STEP 18 Memory write failed.", error);
       throw error;
-    } finally {
-      console.timeEnd("MEMORY_WRITE");
     }
 
     try {
@@ -433,14 +399,12 @@ export async function POST(request) {
           internalCreditBypassReason: creditCheck.internalBypassReason,
         },
       });
-      logStep("STEP 13 Usage Complete");
     } catch (error) {
       logError("Usage event completion failed.", error);
       throw error;
     }
 
     log("STEP 19 Sending response.");
-    logStep("STEP 14 Response Sent");
     log("REQUEST END", {
       totalElapsedMs: Date.now() - requestStartedAt,
     });

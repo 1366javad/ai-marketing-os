@@ -45,15 +45,9 @@ async function runOpenAI({
       };
     }
 
-    console.time("OPENAI_CALL");
-    let response;
-    try {
-      response = await client.responses.create(request, {
-        timeout: 15000,
-      });
-    } finally {
-      console.timeEnd("OPENAI_CALL");
-    }
+    const response = await client.responses.create(request, {
+      timeout: 60000,
+    });
 
     return {
       provider: "openai",

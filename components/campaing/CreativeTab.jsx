@@ -753,7 +753,7 @@ export default function CreativeTab({
           </span>
         </div>
 
-        <div className="grid  gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-6">
+        <div className="grid  gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-3">
           {creativeTasks.map((task) => {
             const Icon = task.icon;
             const isActive = selectedTask === task.id;
