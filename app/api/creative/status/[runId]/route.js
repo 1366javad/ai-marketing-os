@@ -1,6 +1,8 @@
 import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET(_request, { params }) {
+  console.log("STATUS STEP 1 Route entered");
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -11,11 +13,13 @@ export async function GET(_request, { params }) {
   }
 
   const { runId } = await params;
+  console.log("STATUS STEP 2 RunId =", runId);
 
   if (!runId) {
     return Response.json({ error: "Missing runId" }, { status: 400 });
   }
 
+  console.log("STATUS STEP 3 Before DB");
   const { data, error } = await supabase
     .from("campaign_memory_events")
     .select("*")
@@ -25,6 +29,7 @@ export async function GET(_request, { params }) {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  console.log("STATUS STEP 4 After DB");
 
   if (error) {
     console.error("Creative image status lookup failed:", {
@@ -39,6 +44,8 @@ export async function GET(_request, { params }) {
   }
 
   if (!data) {
+    console.log("STATUS STEP 5 Current status =", "generating");
+    console.log("STATUS STEP 6 Returning response");
     return Response.json({
       runId,
       status: "generating",
@@ -49,6 +56,8 @@ export async function GET(_request, { params }) {
 
   const payload = data.payload || {};
   const imageStatus = payload.imageStatus || statusFromApproval(data);
+  console.log("STATUS STEP 5 Current status =", imageStatus);
+  console.log("STATUS STEP 6 Returning response");
 
   return Response.json({
     runId,
