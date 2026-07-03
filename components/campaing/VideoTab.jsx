@@ -229,14 +229,17 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
     window.setTimeout(() => setCopied(false), 1600);
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!activeText) return;
     const gate = getActionGate({ plan, action: "export" });
     if (!gate.allowed) {
       setUpgradeGate(gate);
       return;
     }
-    exportPdf(activeReport.title || activeTask.title, activeText);
+    await exportPdf({
+      title: activeReport.title || activeTask.title,
+      content: activeText,
+    });
   };
 
   return (

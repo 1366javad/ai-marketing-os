@@ -41,62 +41,93 @@ function mergeCreativeMemoryEvents(events) {
 
   for (const event of events) {
     const key = event.type || "image_post";
-    const current = groups.get(key);
-
-    if (!current) {
-      groups.set(key, event);
-      continue;
-    }
-
-    const currentReport = current.creativeOutput || {};
-    const incomingReport = event.creativeOutput || {};
-    const conceptEvent =
-      event.artifact === "creative_concept" ? event : current;
-    const imageEvent = event.artifact === "image_asset" ? event : current;
-
-    groups.set(key, {
-      ...conceptEvent,
-      id: conceptEvent.id,
-      records: [current.id, event.id],
-      artifact: "creative_concept",
-      content:
-        imageEvent.creativeOutput?.asset?.imageUrl ||
-        imageEvent.content ||
-        conceptEvent.content ||
-        "",
-      creativeOutput: {
-        ...currentReport,
-        ...incomingReport,
-        specification:
-          incomingReport.specification || currentReport.specification || {},
-        concept: incomingReport.concept || currentReport.concept || "",
-        caption: incomingReport.caption || currentReport.caption || "",
-        designDirection:
-          incomingReport.designDirection ||
-          currentReport.designDirection ||
-          "",
-        visualNotes:
-          incomingReport.visualNotes || currentReport.visualNotes || [],
-        cta: incomingReport.cta || currentReport.cta || "",
-        imagePrompt:
-          incomingReport.imagePrompt || currentReport.imagePrompt || "",
-        asset: incomingReport.asset || currentReport.asset || null,
-        review: incomingReport.review || currentReport.review || null,
-        metadata: {
-          ...(currentReport.metadata || {}),
-          ...(incomingReport.metadata || {}),
-        },
-      },
-      approval_status:
-        imageEvent.approval_status || conceptEvent.approval_status,
-      created_at:
-        new Date(current.created_at || 0) > new Date(event.created_at || 0)
-          ? current.created_at
-          : event.created_at,
-    });
+    groups.set(key, [...(groups.get(key) || []), event]);
   }
 
-  return [...groups.values()];
+  return [...groups.values()].map(mergeCreativeTaskEvents);
+}
+
+function mergeCreativeTaskEvents(events) {
+  const sorted = [...events].sort(compareNewestFirst);
+  const conceptEvent =
+    sorted.find((event) => event.artifact === "creative_concept") || sorted[0];
+  const imageEvent =
+    sorted.find(
+      (event) =>
+        event.artifact === "image_asset" &&
+        hasCreativeImage(event) &&
+        !isFailedCreativeImage(event),
+    ) ||
+    sorted.find((event) => event.artifact === "image_asset" && hasCreativeImage(event)) ||
+    null;
+  const conceptReport = conceptEvent?.creativeOutput || {};
+  const imageReport = imageEvent?.creativeOutput || {};
+  const latestCreatedAt = sorted[0]?.created_at || conceptEvent?.created_at || "";
+
+  return {
+    ...conceptEvent,
+    id: conceptEvent?.id || imageEvent?.id,
+    records: sorted.map((event) => event.id),
+    artifact: "creative_concept",
+    content:
+      imageReport.asset?.imageUrl ||
+      imageEvent?.content ||
+      conceptEvent?.content ||
+      "",
+    creativeOutput: {
+      ...conceptReport,
+      ...(imageEvent ? imageReport : {}),
+      type: conceptReport.type || imageReport.type || conceptEvent?.type || "image_post",
+      title:
+        conceptReport.title ||
+        imageReport.title ||
+        conceptEvent?.title ||
+        "Creative Concept",
+      specification:
+        conceptReport.specification || imageReport.specification || {},
+      visualDirection:
+        conceptReport.visualDirection || imageReport.visualDirection || {},
+      concept: conceptReport.concept || imageReport.concept || "",
+      caption: conceptReport.caption || imageReport.caption || "",
+      designDirection:
+        conceptReport.designDirection || imageReport.designDirection || "",
+      visualNotes: conceptReport.visualNotes || imageReport.visualNotes || [],
+      cta: conceptReport.cta || imageReport.cta || "",
+      imagePrompt: imageReport.imagePrompt || conceptReport.imagePrompt || "",
+      asset: imageReport.asset || conceptReport.asset || null,
+      review: imageReport.review || conceptReport.review || null,
+      metadata: {
+        ...(conceptReport.metadata || {}),
+        ...(imageReport.metadata || {}),
+      },
+    },
+    approval_status:
+      imageEvent?.approval_status || conceptEvent?.approval_status || "pending",
+    created_at: latestCreatedAt,
+  };
+}
+
+function compareNewestFirst(a, b) {
+  return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+}
+
+function hasCreativeImage(event) {
+  return Boolean(
+    event?.creativeOutput?.asset?.imageUrl ||
+      event?.creativeOutput?.asset?.remoteUrl ||
+      event?.content,
+  );
+}
+
+function isFailedCreativeImage(event) {
+  const status = String(
+    event?.creativeOutput?.metadata?.imageStatus ||
+      event?.metadata?.memoryEvent?.payload?.imageStatus ||
+      event?.approval_status ||
+      "",
+  ).toLowerCase();
+
+  return status === "failed" || status === "rejected";
 }
 
 function mapCreativeMemoryEvent(row) {

@@ -7,14 +7,6 @@ async function runOpenAI({
   maxTokens = 1200,
   responseFormat,
 }) {
-  console.log("ENTER runOpenAI", {
-    timestamp: new Date().toISOString(),
-    systemPromptLength: String(systemPrompt || "").length,
-    userPromptLength: String(userPrompt || "").length,
-    maxTokens,
-    responseFormat: responseFormat || null,
-  });
-
   const startedAt = Date.now();
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -53,27 +45,8 @@ async function runOpenAI({
       };
     }
 
-    console.log("OpenAI request", {
-      timestamp: new Date().toISOString(),
-      request,
-    });
-
-    console.log("Before responses.create", {
-      timestamp: new Date().toISOString(),
-      model,
-      timeout: 60000,
-    });
-
     const response = await client.responses.create(request, {
       timeout: 60000,
-    });
-
-    console.log("After responses.create", {
-      timestamp: new Date().toISOString(),
-      latencyMs: Date.now() - startedAt,
-      outputTextLength: String(response?.output_text || "").length,
-      outputItems: Array.isArray(response?.output) ? response.output.length : 0,
-      usage: normalizeOpenAIUsage(response?.usage),
     });
 
     return {

@@ -140,11 +140,33 @@ function isApprovedMemoryOutput(output) {
 function findLatestOutputForTask(outputs, taskId, options = {}) {
   const includePending = options.includePending ?? true;
 
-  return (outputs || []).find((output) => {
-    if (getOutputTaskId(output) !== taskId) return false;
-    if (includePending) return true;
-    return isApprovedMemoryOutput(output);
-  });
+  const matches = (outputs || [])
+    .filter((output) => {
+      if (getOutputTaskId(output) !== taskId) return false;
+      if (includePending) return true;
+      return isApprovedMemoryOutput(output);
+    })
+    .sort(compareNewestOutputFirst);
+
+  return matches.find(hasOutputImage) || matches[0] || null;
+}
+
+function sortOutputsForDisplay(outputs = []) {
+  return [...outputs].sort(compareNewestOutputFirst);
+}
+
+function compareNewestOutputFirst(a, b) {
+  return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+}
+
+function hasOutputImage(output) {
+  return Boolean(
+    output?.creativeOutput?.asset?.imageUrl ||
+      output?.creativeOutput?.asset?.remoteUrl ||
+      output?.metadata?.memoryEvent?.payload?.asset?.imageUrl ||
+      output?.metadata?.memoryEvent?.payload?.asset?.remoteUrl ||
+      /^(data:image\/|https?:\/\/)/i.test(output?.content || ""),
+  );
 }
 
 function getCreativeReport(output) {
@@ -466,7 +488,9 @@ export default function CreativeTab({
   const viewerRef = useRef(null);
   const initialTask =
     getTaskId(searchParams.get("creativeTask")) || "image_post";
-  const [localOutputs, setLocalOutputs] = useState(creatives || []);
+  const [localOutputs, setLocalOutputs] = useState(() =>
+    sortOutputsForDisplay(creatives || []),
+  );
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState({});
   const [errors, setErrors] = useState({});
@@ -485,7 +509,7 @@ export default function CreativeTab({
   const [imageJobs, setImageJobs] = useState({});
 
   useEffect(() => {
-    setLocalOutputs(creatives || []);
+    setLocalOutputs(sortOutputsForDisplay(creatives || []));
   }, [creatives]);
 
   useEffect(() => {
@@ -593,19 +617,21 @@ export default function CreativeTab({
       [taskId]: mergeImage(prev[taskId]),
     }));
     setLocalOutputs((prev) =>
-      prev.map((output) =>
-        getOutputTaskId(output) === taskId
-          ? {
-              ...output,
-              content: status.asset?.imageUrl || output.content,
-              creativeOutput: mergeImage(output.creativeOutput),
-              metadata: {
-                ...(output.metadata || {}),
-                ...(status.metadata || {}),
-                imageStatus: "ready",
-              },
-            }
-          : output,
+      sortOutputsForDisplay(
+        prev.map((output) =>
+          getOutputTaskId(output) === taskId
+            ? {
+                ...output,
+                content: status.asset?.imageUrl || output.content,
+                creativeOutput: mergeImage(output.creativeOutput),
+                metadata: {
+                  ...(output.metadata || {}),
+                  ...(status.metadata || {}),
+                  imageStatus: "ready",
+                },
+              }
+            : output,
+        ),
       ),
     );
     setImageJobs((prev) => ({
@@ -700,10 +726,9 @@ export default function CreativeTab({
         },
       );
       setIsOutputExpanded(false);
-      setLocalOutputs((prev) => [
-        normalizeGeneratedOutput(data, taskId),
-        ...prev,
-      ]);
+      setLocalOutputs((prev) =>
+        sortOutputsForDisplay([normalizeGeneratedOutput(data, taskId), ...prev]),
+      );
       setImageJobs((prev) => ({
         ...prev,
         [taskId]: {
@@ -731,14 +756,18 @@ export default function CreativeTab({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!activeText) return;
     const gate = getActionGate({ plan, action: "export" });
     if (!gate.allowed) {
       setUpgradeGate(gate);
       return;
     }
-    exportPdf(`${campaign.name}-${activeTask?.title}`, activeText);
+    await exportPdf({
+      title: `${campaign.name}-${activeTask?.title}`,
+      content: activeText,
+      imageUrl: activeAssetUrl,
+    });
   };
 
   return (

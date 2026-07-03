@@ -578,14 +578,17 @@ export default function ResearchTab({
     navigator.clipboard.writeText(activeReportText);
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!activeReportText) return;
     const gate = getActionGate({ plan, action: "export" });
     if (!gate.allowed) {
       setUpgradeGate(gate);
       return;
     }
-    exportPdf(activeTitle, activeReportText);
+    await exportPdf({
+      title: activeTitle,
+      content: activeReportText,
+    });
   };
 
   function MemoryIcon({ name, color }) {

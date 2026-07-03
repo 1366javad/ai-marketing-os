@@ -147,7 +147,10 @@ export default function AssetsTab({ campaign, assets = [] }) {
 
   const downloadAsset = async (asset) => {
     if (!isFileAsset(asset)) {
-      exportPdf(asset.title, buildPdfContent(asset, campaign));
+      await exportPdf({
+        title: asset.title,
+        content: buildPdfContent(asset, campaign),
+      });
       return;
     }
 
