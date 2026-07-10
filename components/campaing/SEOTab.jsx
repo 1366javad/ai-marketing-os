@@ -28,6 +28,8 @@ import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
 import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
+import { ReportList as SharedReportList } from "@/components/campaing/shared/ReportComponents";
+import { useCampaignActionLifecycle } from "@/hooks/useCampaignActionLifecycle";
 
 const sections = [
   {
@@ -318,26 +320,13 @@ function formatStrategy(strategy = {}) {
 }
 
 function ReportList({ title, items }) {
-  const safeItems = Array.isArray(items)
-    ? items.map((item) => stringifyReportItem(item)).filter(Boolean)
-    : [];
-
-  if (safeItems.length === 0) return null;
-
   return (
-    <section className="rounded-lg border border-slate-200 p-4 dark:border-white/10">
-      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-        {title}
-      </h4>
-      <ul className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-        {safeItems.map((item, index) => (
-          <li key={`${title}-${index}`} className="flex gap-2">
-            <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-white/20"></span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <SharedReportList
+      title={title}
+      items={items}
+      stringifyItem={stringifyReportItem}
+      sectionClassName="rounded-lg border border-slate-200 p-4 dark:border-white/10"
+    />
   );
 }
 
@@ -704,12 +693,19 @@ export default function SEOTab({ campaign, seoOutputs = [], plan = "free" }) {
   const viewerRef = useRef(null);
   const [results, setResults] = useState({});
   const [localOutputs, setLocalOutputs] = useState(seoOutputs || []);
-  const [loading, setLoading] = useState({});
-  const [errors, setErrors] = useState({});
   const [selectedSection, setSelectedSection] = useState("keywords");
   const [direction, setDirection] = useState("");
   const [isReportExpanded, setIsReportExpanded] = useState(false);
-  const [upgradeGate, setUpgradeGate] = useState(null);
+  const {
+    loading,
+    setLoading,
+    errors,
+    setErrors,
+    copyToClipboard,
+    upgradeGate,
+    setUpgradeGate,
+    ensureActionAllowed,
+  } = useCampaignActionLifecycle();
 
   useEffect(() => {
     setLocalOutputs(seoOutputs || []);
@@ -895,16 +891,12 @@ export default function SEOTab({ campaign, seoOutputs = [], plan = "free" }) {
 
   const copyContent = () => {
     if (!activeReportText) return;
-    navigator.clipboard.writeText(activeReportText);
+    copyToClipboard(activeReportText);
   };
 
   const downloadPdf = async () => {
     if (!activeReportText) return;
-    const gate = getActionGate({ plan, action: "export" });
-    if (!gate.allowed) {
-      setUpgradeGate(gate);
-      return;
-    }
+    if (!ensureActionAllowed({ plan, action: "export" })) return;
     await exportPdf({
       title: activeTitle,
       content: activeReportText,

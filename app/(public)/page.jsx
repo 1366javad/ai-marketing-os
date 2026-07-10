@@ -2,12 +2,12 @@ import ContentSection from "@/components/landing/ContentSection";
 import FAQSection from "@/components/landing/FAQSection";
 import FeaturesSection from "@/components/landing/FeaturesSection";
 import Footer from "@/components/layout/Footer";
-import HeroSection from "@/components/landing/HeroSection";
 
 import PricingSection from "@/components/landing/PricingSection";
 import WorkflowSection from "@/components/landing/WorkflowSection";
 import Navbar from "@/components/layout/Navbar";
 import { getUserAndProfile } from "@/app/lib/db/getUserData";
+import AINetworkHero from "@/components/HeroNetwork/AINetworkHero";
 
 async function Home() {
   const { user } = await getUserAndProfile();
@@ -19,7 +19,8 @@ async function Home() {
     <header>
       <Navbar />
       <main>
-        <HeroSection primaryCta={primaryCta} />
+        <AINetworkHero primaryCta={primaryCta} />
+
         {/* featur */}
         <FeaturesSection />
         {/* content */}

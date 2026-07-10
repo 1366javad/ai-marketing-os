@@ -33,6 +33,8 @@ import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
 import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
+import { IconReportBlock } from "@/components/campaing/shared/ReportComponents";
+import { useCampaignActionLifecycle } from "@/hooks/useCampaignActionLifecycle";
 
 const creativeTasks = [
   {
@@ -391,28 +393,11 @@ function ReportBlock({
   iconColor = "text-violet-400",
   children,
 }) {
-  if (!hasRenderableContent(children)) return null;
-
   return (
-    <section className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="mb-2 flex items-center gap-2">
-        <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
-        <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600 dark:text-white/70">
-          {title}
-        </h4>
-      </div>
-      <div className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-        {children}
-      </div>
-    </section>
+    <IconReportBlock title={title} icon={Icon} iconColor={iconColor}>
+      {children}
+    </IconReportBlock>
   );
-}
-
-function hasRenderableContent(value) {
-  if (typeof value === "string") return hasText(value);
-  if (Array.isArray(value)) return value.some(hasRenderableContent);
-  if (!value || typeof value !== "object") return Boolean(value);
-  return true;
 }
 
 function getRenderableItems(items) {
@@ -492,8 +477,6 @@ export default function CreativeTab({
     sortOutputsForDisplay(creatives || []),
   );
   const [results, setResults] = useState({});
-  const [loading, setLoading] = useState({});
-  const [errors, setErrors] = useState({});
   const [selectedTask, setSelectedTask] = useState(
     creativeTasks.some((task) => task.id === initialTask)
       ? initialTask
@@ -503,10 +486,19 @@ export default function CreativeTab({
   const [tone, setTone] = useState("Professional");
   const [visualDirection, setVisualDirection] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [copied, setCopied] = useState(false);
   const [isOutputExpanded, setIsOutputExpanded] = useState(false);
-  const [upgradeGate, setUpgradeGate] = useState(null);
   const [imageJobs, setImageJobs] = useState({});
+  const {
+    loading,
+    setLoading,
+    errors,
+    setErrors,
+    copied,
+    copyToClipboard,
+    upgradeGate,
+    setUpgradeGate,
+    ensureActionAllowed,
+  } = useCampaignActionLifecycle({ copyResetMs: 2000 });
 
   useEffect(() => {
     setLocalOutputs(sortOutputsForDisplay(creatives || []));
@@ -751,18 +743,12 @@ export default function CreativeTab({
 
   const copyOutput = () => {
     if (!activeText) return;
-    navigator.clipboard.writeText(activeText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(activeText);
   };
 
   const downloadPdf = async () => {
     if (!activeText) return;
-    const gate = getActionGate({ plan, action: "export" });
-    if (!gate.allowed) {
-      setUpgradeGate(gate);
-      return;
-    }
+    if (!ensureActionAllowed({ plan, action: "export" })) return;
     await exportPdf({
       title: `${campaign.name}-${activeTask?.title}`,
       content: activeText,

@@ -112,7 +112,7 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
   };
 
   const inputClass =
-    "w-full px-3 py-2.5 text-sm rounded-xl border outline-none transition-all dark:bg-white/[0.05] dark:border-white/[0.08] dark:text-white dark:placeholder-slate-500 dark:focus:border-[#3B3CFF]/60 dark:focus:bg-white/[0.08] bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#3B3CFF]/50 focus:ring-2 focus:ring-[#3B3CFF]/10 focus:bg-white";
+    "w-full px-3 py-2.5 text-sm rounded-xl border outline-none transition-all dark:bg-white/[0.05] dark:border-white/[0.08] dark:text-white dark:placeholder-slate-500 dark:focus:border-campaign-primary/60 dark:focus:bg-white/[0.08] bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-campaign-primary/50 focus:ring-2 focus:ring-campaign-primary/10 focus:bg-white";
 
   return (
     <>
@@ -210,7 +210,7 @@ export default function CreateCampaignModal({ onClose, onCreated }) {
             <button
               onClick={submit}
               disabled={saving}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#3B3CFF] to-[#5B5CFF] px-5 py-2 text-sm font-medium text-white transition-all hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-campaign-primary to-campaign-primaryLight px-5 py-2 text-sm font-medium text-white transition-all hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 sm:w-auto"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? "Creating..." : "Create Campaign"}

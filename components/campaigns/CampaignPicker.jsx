@@ -40,7 +40,7 @@ export default function CampaignPicker({
       <DropdownMenuTrigger asChild>
         <button
           className={`flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium border transition-all
-            bg-[#3B3CFF]/5 border-[#3B3CFF]/20 text-[#3B3CFF]
+            bg-campaign-primary/5 border-campaign-primary/20 text-campaign-primary
             hover:bg-primary-100
             dark:bg-dark-surface
             dark:border-primary-900

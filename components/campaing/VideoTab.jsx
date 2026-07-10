@@ -26,6 +26,11 @@ import { exportPdf } from "@/app/lib/export/exportPdf";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
 import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
+import {
+  ReportSection as SharedReportSection,
+  ReportState as SharedReportState,
+} from "@/components/campaing/shared/ReportComponents";
+import { useCampaignActionLifecycle } from "@/hooks/useCampaignActionLifecycle";
 
 const VIDEO_TASKS = [
   {
@@ -89,8 +94,6 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
   const [selectedTask, setSelectedTask] = useState(requestedTask);
   const [localOutputs, setLocalOutputs] = useState(videos || []);
   const [results, setResults] = useState({});
-  const [loading, setLoading] = useState({});
-  const [errors, setErrors] = useState({});
   const [goal, setGoal] = useState(campaign?.goal || "");
   const [audience, setAudience] = useState(
     campaign?.audience || campaign?.target_audience || "",
@@ -101,15 +104,25 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
   const [visualStyle, setVisualStyle] = useState("");
   const [direction, setDirection] = useState("");
   const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [upgradeGate, setUpgradeGate] = useState(null);
+  const {
+    loading,
+    setLoading,
+    errors,
+    setErrors,
+    copied,
+    setCopied,
+    copyToClipboard,
+    upgradeGate,
+    setUpgradeGate,
+    ensureActionAllowed,
+  } = useCampaignActionLifecycle();
 
   useEffect(() => setLocalOutputs(videos || []), [videos]);
   useEffect(() => setSelectedTask(requestedTask), [requestedTask]);
   useEffect(() => {
     setExpanded(false);
     setCopied(false);
-  }, [selectedTask]);
+  }, [selectedTask, setCopied]);
 
   const activeTask =
     VIDEO_TASKS.find((task) => task.id === selectedTask) || VIDEO_TASKS[0];
@@ -224,18 +237,12 @@ export default function VideoTab({ campaign, videos = [], plan = "free" }) {
 
   const copyOutput = async () => {
     if (!activeText) return;
-    await navigator.clipboard.writeText(activeText);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    await copyToClipboard(activeText);
   };
 
   const downloadPdf = async () => {
     if (!activeText) return;
-    const gate = getActionGate({ plan, action: "export" });
-    if (!gate.allowed) {
-      setUpgradeGate(gate);
-      return;
-    }
+    if (!ensureActionAllowed({ plan, action: "export" })) return;
     await exportPdf({
       title: activeReport.title || activeTask.title,
       content: activeText,
@@ -624,28 +631,29 @@ function SelectField({ label, value, onChange, options }) {
 
 function State({ icon: Icon, iconClass, title, description }) {
   return (
-    <div className="flex h-[520px] flex-col items-center justify-center px-8 text-center">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
-        <Icon className={`h-7 w-7 ${iconClass}`} />
-      </div>
-      <h3 className="mt-4 font-semibold dark:text-white">{title}</h3>
-      <p className="mt-1.5 max-w-sm text-sm text-slate-500 dark:text-white/50">
-        {description}
-      </p>
-    </div>
+    <SharedReportState
+      icon={Icon}
+      iconClass={iconClass}
+      title={title}
+      description={description}
+      className="flex h-[520px] flex-col items-center justify-center px-8 text-center"
+      iconWrapClassName="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]"
+      titleClassName="mt-4 font-semibold dark:text-white"
+      descriptionClassName="mt-1.5 max-w-sm text-sm text-slate-500 dark:text-white/50"
+    />
   );
 }
 
 function OutputBlock({ title, children }) {
-  if (!hasRenderableContent(children)) return null;
-
   return (
-    <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
-      <h4 className="text-sm font-semibold dark:text-white">{title}</h4>
-      <div className="mt-2 text-sm leading-7 text-slate-600 dark:text-white/60">
-        {children}
-      </div>
-    </section>
+    <SharedReportSection
+      title={title}
+      sectionClassName="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]"
+      titleClassName="text-sm font-semibold dark:text-white"
+      bodyClassName="mt-2 text-sm leading-7 text-slate-600 dark:text-white/60"
+    >
+      {children}
+    </SharedReportSection>
   );
 }
 
@@ -678,13 +686,6 @@ function SceneCard({ scene }) {
       </div>
     </OutputBlock>
   );
-}
-
-function hasRenderableContent(value) {
-  if (typeof value === "string") return hasText(value);
-  if (Array.isArray(value)) return value.some(hasRenderableContent);
-  if (!value || typeof value !== "object") return Boolean(value);
-  return true;
 }
 
 function hasRenderableScene(scene) {

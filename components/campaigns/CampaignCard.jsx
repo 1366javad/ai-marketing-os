@@ -90,7 +90,7 @@ export default function CampaignCard({ campaign, compact = false }) {
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center text-xl
             dark:bg-white/[0.06]
-              bg-gradient-to-br from-[#3B3CFF]/10 to-[#7B5CFF]/10"
+              bg-gradient-to-br from-campaign-primary/10 to-campaign-accent/10"
         >
           🚀
         </div>
@@ -107,7 +107,7 @@ export default function CampaignCard({ campaign, compact = false }) {
       </div>
 
       <h3
-        className="font-semibold text-sm leading-tight mb-1 group-hover:text-[#3B3CFF] transition-colors
+        className="font-semibold text-sm leading-tight mb-1 group-hover:text-campaign-primary transition-colors
           dark:text-white text-slate-900"
       >
         {campaign.name}

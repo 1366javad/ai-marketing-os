@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -10,77 +10,37 @@ import {
   ChevronUp,
   Copy,
   Download,
-  Facebook,
   FileText,
-  Linkedin,
   Loader2,
   Lock,
   Megaphone,
-  PackageCheck,
-  Search,
   Sparkles,
-  Video,
 } from "lucide-react";
 
 import { getAiErrorMessage } from "@/app/lib/utils/aiErrorMessage";
 import { useTextStream } from "@/app/lib/context/TextStreamContext";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
 import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
-
-const ADS_TASKS = [
-  {
-    id: "google_ads",
-    label: "Google Ads",
-    title: "Google Ads",
-    description:
-      "Create responsive search headlines, descriptions, CTAs, and extensions.",
-    icon: Search,
-    iconColor: "text-blue-500 dark:text-blue-400",
-  },
-  {
-    id: "meta_ads",
-    label: "Instagram Ad",
-    title: "Instagram Ad",
-    description:
-      "Create Instagram-ready primary text, headlines, conversion angles, and CTAs.",
-    icon: Facebook,
-    iconColor: "text-indigo-500 dark:text-indigo-400",
-  },
-  {
-    id: "linkedin_ads",
-    label: "LinkedIn Ads",
-    title: "LinkedIn Ads",
-    description:
-      "Create professional sponsored content for decision-makers and lead generation.",
-    icon: Linkedin,
-    iconColor: "text-sky-500 dark:text-sky-400",
-  },
-  {
-    id: "tiktok_ads",
-    label: "TikTok Ads",
-    title: "TikTok Ads",
-    description:
-      "Create native hooks, short-form scripts, ad text, and direct-response CTAs.",
-    icon: Video,
-    iconColor: "text-pink-500 dark:text-pink-400",
-  },
-  {
-    id: "campaign_package",
-    label: "Campaign Package",
-    title: "Ads Campaign Package",
-    description:
-      "Create one coordinated advertising package adapted across all core platforms.",
-    icon: PackageCheck,
-    iconColor: "text-fuchsia-500 dark:text-fuchsia-400",
-  },
-];
-
-const PLATFORM_TASK_IDS = [
-  "google_ads",
-  "meta_ads",
-  "linkedin_ads",
-  "tiktok_ads",
-];
+import { useCampaignActionLifecycle } from "@/hooks/useCampaignActionLifecycle";
+import {
+  BriefField,
+  ContextSource,
+  ReportList,
+  ReportSection,
+  ReportState,
+} from "@/components/campaing/ads/AdsReportComponents";
+import {
+  buildCampaignPackageOutput,
+  buildCampaignPackageReport,
+  extractAdsReport,
+  formatAdsText,
+  formatMemoryStatus,
+  hasText,
+  isValidDate,
+  isValidReport,
+  normalizeTask,
+} from "@/app/lib/utils/adsReportUtils";
+import { ADS_TASKS, PLATFORM_TASK_IDS } from "@/app/lib/utils/adsTasks";
 
 export default function AdsTab({ campaign, ads = [], plan = "free" }) {
   const searchParams = useSearchParams();
@@ -90,8 +50,6 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
   const [selectedTask, setSelectedTask] = useState(requestedTask);
   const [localOutputs, setLocalOutputs] = useState(ads || []);
   const [results, setResults] = useState({});
-  const [loading, setLoading] = useState({});
-  const [errors, setErrors] = useState({});
   const [goal, setGoal] = useState(campaign?.goal || "");
   const [audience, setAudience] = useState(
     campaign?.audience || campaign?.target_audience || "",
@@ -101,9 +59,19 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
   );
   const [budget, setBudget] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [copied, setCopied] = useState(false);
   const [isReportExpanded, setIsReportExpanded] = useState(false);
-  const [upgradeGate, setUpgradeGate] = useState(null);
+  const {
+    loading,
+    setLoading,
+    errors,
+    setErrors,
+    copied,
+    setCopied,
+    copyToClipboard,
+    upgradeGate,
+    setUpgradeGate,
+    ensureActionAllowed,
+  } = useCampaignActionLifecycle();
 
   useEffect(() => {
     setLocalOutputs(ads || []);
@@ -116,7 +84,7 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
   useEffect(() => {
     setIsReportExpanded(false);
     setCopied(false);
-  }, [selectedTask]);
+  }, [selectedTask, setCopied]);
 
   const activeTask =
     ADS_TASKS.find((item) => item.id === selectedTask) || ADS_TASKS[0];
@@ -331,18 +299,12 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
 
   const copyReport = async () => {
     if (!activeReport) return;
-    await navigator.clipboard.writeText(formatAdsText(activeReport));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    await copyToClipboard(formatAdsText(activeReport));
   };
 
   const exportReport = () => {
     if (!activeReport) return;
-    const gate = getActionGate({ plan, action: "export" });
-    if (!gate.allowed) {
-      setUpgradeGate(gate);
-      return;
-    }
+    if (!ensureActionAllowed({ plan, action: "export" })) return;
     const blob = new Blob([formatAdsText(activeReport)], {
       type: "text/plain",
     });
@@ -366,7 +328,7 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
           </span>
         </div>
 
-        <div className="grid  gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-3">
+        <div className="grid  gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-white/5 dark:bg-white/[0.02] dark:shadow-none grid-cols-2 lg:grid-cols-5">
           {ADS_TASKS.map((task) => {
             const Icon = task.icon;
             const isActive = selectedTask === task.id;
@@ -719,322 +681,3 @@ export default function AdsTab({ campaign, ads = [], plan = "free" }) {
   );
 }
 
-function BriefField({ label, value, onChange, placeholder = "" }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs text-slate-500 dark:text-white/50">
-        {label}
-      </span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#3B3CFF]/50 focus:outline-none focus:ring-2 focus:ring-[#3B3CFF]/20 dark:border-white/10 dark:bg-dark-bg dark:text-white dark:placeholder:text-white/30 dark:focus:border-white/30 dark:focus:ring-0"
-      />
-    </label>
-  );
-}
-
-function ContextSource({ label }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <Check className="h-3 w-3 text-emerald-500" />
-      {label}
-    </div>
-  );
-}
-
-const ReportState = React.forwardRef(function ReportState(
-  { icon: Icon, iconClassName = "", title, description, danger = false },
-  ref,
-) {
-  return (
-    <div
-      ref={ref}
-      className="flex h-[520px] flex-col items-center justify-center px-8 py-16 text-center"
-    >
-      <div
-        className={`rounded-2xl border p-4 ${
-          danger
-            ? "border-rose-200 bg-rose-50 dark:border-rose-400/20 dark:bg-rose-400/10"
-            : "border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.03]"
-        }`}
-      >
-        <Icon className={`h-7 w-7 ${iconClassName}`} />
-      </div>
-      <h3 className="mt-4 text-base font-semibold text-slate-900 dark:text-white">
-        {title}
-      </h3>
-      <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600 dark:text-white/50">
-        {description}
-      </p>
-    </div>
-  );
-});
-
-function ReportSection({ title, children }) {
-  if (!hasRenderableContent(children)) return null;
-
-  return (
-    <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
-      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-        {title}
-      </h4>
-      <div className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/60">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function ReportList({ title, items }) {
-  const safeItems = Array.isArray(items)
-    ? items.map((item) => stringifyItem(item)).filter(Boolean)
-    : [];
-
-  if (safeItems.length === 0) return null;
-
-  return (
-    <ReportSection title={title}>
-      <ul className="space-y-2">
-        {safeItems.map((item, index) => (
-          <li key={`${title}-${index}`} className="flex gap-2">
-            <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-primary-500" />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </ReportSection>
-  );
-}
-
-function hasRenderableContent(value) {
-  if (typeof value === "string") return hasText(value);
-  if (Array.isArray(value)) return value.some(hasRenderableContent);
-  if (!value || typeof value !== "object") return Boolean(value);
-  return true;
-}
-
-function extractAdsReport(output) {
-  if (!output) return null;
-  const report =
-    output.adsOutput || output.metadata?.memoryEvent?.payload || {};
-
-  return {
-    ...report,
-    type: normalizeTask(report.type || output.type),
-    title: report.title || output.title || "Ads Report",
-    summary: report.summary || "",
-    headlines: normalizeList(report.headlines),
-    primaryTexts: normalizeList(
-      report.primaryTexts || report.primary_texts || report.body,
-    ),
-    descriptions: normalizeList(report.descriptions),
-    ctas: normalizeList(report.ctas || report.cta),
-    extensions: normalizeList(report.extensions),
-    hooks: normalizeList(report.hooks),
-    scriptIdeas: normalizeList(
-      report.scriptIdeas || report.script_ideas || report.scripts,
-    ),
-    recommendations: normalizeList(report.recommendations),
-    metadata: {
-      provider:
-        report.metadata?.provider ||
-        report.provider ||
-        output.metadata?.provider ||
-        "memory",
-      confidence:
-        report.metadata?.confidence ||
-        report.confidence ||
-        output.confidence ||
-        output.metadata?.confidence ||
-        0,
-      generatedAt:
-        report.metadata?.generatedAt ||
-        report.generatedAt ||
-        output.created_at ||
-        "",
-    },
-  };
-}
-
-function buildCampaignPackageOutput(outputs) {
-  const reports = outputs.map(extractAdsReport).filter(Boolean);
-  const report = buildCampaignPackageReport(reports);
-  const generatedAt = getLatestGeneratedAt(reports);
-
-  return {
-    id: `campaign-package-${generatedAt || "generated"}`,
-    source: "derived",
-    module: "ads",
-    type: "campaign_package",
-    title: report.title,
-    adsOutput: report,
-    approval_status: "pending",
-    risk_level: "high",
-    created_at: generatedAt,
-    metadata: {
-      provider: report.metadata.provider,
-      generatedAt,
-    },
-  };
-}
-
-function buildCampaignPackageReport(reports) {
-  const validReports = reports.filter(Boolean);
-  const generatedAt = getLatestGeneratedAt(validReports);
-  const providers = [
-    ...new Set(
-      validReports
-        .map((report) => report.metadata?.provider)
-        .filter((provider) => provider && provider !== "memory"),
-    ),
-  ];
-
-  return {
-    type: "campaign_package",
-    title: "Complete Ads Campaign Package",
-    summary:
-      "A coordinated advertising package containing Google Ads, Meta Ads, LinkedIn Ads, and TikTok Ads variants.",
-    headlines: collectPackageItems(validReports, "headlines"),
-    primaryTexts: collectPackageItems(validReports, "primaryTexts"),
-    descriptions: collectPackageItems(validReports, "descriptions"),
-    ctas: collectPackageItems(validReports, "ctas"),
-    extensions: collectPackageItems(validReports, "extensions"),
-    hooks: collectPackageItems(validReports, "hooks"),
-    scriptIdeas: collectPackageItems(validReports, "scriptIdeas"),
-    recommendations: collectPackageItems(validReports, "recommendations"),
-    metadata: {
-      provider: providers.length === 1 ? providers[0] : "multi-provider",
-      confidence: 0,
-      generatedAt,
-    },
-  };
-}
-
-function collectPackageItems(reports, field) {
-  return reports.flatMap((report) => {
-    const task = ADS_TASKS.find((item) => item.id === report.type);
-    const label = task?.label || report.type;
-
-    return normalizeList(report[field]).map((item) => `[${label}] ${item}`);
-  });
-}
-
-function getLatestGeneratedAt(reports) {
-  const timestamps = reports
-    .map((report) => report?.metadata?.generatedAt)
-    .filter(isValidDate)
-    .map((value) => new Date(value).getTime());
-
-  if (timestamps.length === 0) return "";
-  return new Date(Math.max(...timestamps)).toISOString();
-}
-
-function normalizeTask(value) {
-  const task = String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  const aliases = {
-    google: "google_ads",
-    meta: "meta_ads",
-    facebook: "meta_ads",
-    instagram: "meta_ads",
-    instagram_ad: "meta_ads",
-    linkedin: "linkedin_ads",
-    tiktok: "tiktok_ads",
-    package: "campaign_package",
-  };
-  const normalized = aliases[task] || task;
-
-  return ADS_TASKS.some((item) => item.id === normalized)
-    ? normalized
-    : "meta_ads";
-}
-
-function normalizeList(value) {
-  if (Array.isArray(value)) return value.map(stringifyItem).filter(Boolean);
-  if (typeof value === "string" && value.trim()) return [value.trim()];
-  return [];
-}
-
-function stringifyItem(item) {
-  if (typeof item === "string") return item.trim();
-  if (item == null) return "";
-  if (typeof item !== "object") return String(item);
-  return Object.values(item)
-    .flat()
-    .map(stringifyItem)
-    .filter(Boolean)
-    .join(" - ");
-}
-
-function isValidReport(report) {
-  return Boolean(
-    report?.summary ||
-    report?.headlines?.length ||
-    report?.primaryTexts?.length ||
-    report?.descriptions?.length,
-  );
-}
-
-function hasText(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function isValidDate(value) {
-  if (!value) return false;
-  const date = new Date(value);
-  return !Number.isNaN(date.getTime());
-}
-
-function formatMemoryStatus(output) {
-  const status =
-    output?.approval_status ||
-    output?.metadata?.memoryEvent?.approval_status ||
-    "pending";
-  const label =
-    status === "approved"
-      ? "Approved"
-      : status === "auto_saved"
-        ? "Generated"
-        : "Pending Review";
-  const date =
-    output?.created_at ||
-    output?.adsOutput?.metadata?.generatedAt ||
-    output?.metadata?.generatedAt;
-
-  return date ? `${label} · ${formatRelativeTime(date)}` : label;
-}
-
-function formatRelativeTime(value) {
-  const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) return "";
-  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-  if (seconds < 60) return "just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}
-
-function formatAdsText(report) {
-  const sections = [
-    report.title,
-    report.summary,
-    formatTextList("Headlines", report.headlines),
-    formatTextList("Primary Text", report.primaryTexts),
-    formatTextList("Descriptions", report.descriptions),
-    formatTextList("CTAs", report.ctas),
-    formatTextList("Extensions", report.extensions),
-    formatTextList("Hooks", report.hooks),
-    formatTextList("Script Ideas", report.scriptIdeas),
-    formatTextList("Recommendations", report.recommendations),
-  ];
-  return sections.filter(Boolean).join("\n\n");
-}
-
-function formatTextList(title, items) {
-  if (!Array.isArray(items) || items.length === 0) return "";
-  return `${title}\n${items.map((item) => `- ${stringifyItem(item)}`).join("\n")}`;
-}

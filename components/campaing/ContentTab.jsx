@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
 import { getActionGate, getFeatureGate } from "@/app/lib/plans/planPolicy";
+import { useCampaignActionLifecycle } from "@/hooks/useCampaignActionLifecycle";
 
 const CONTENT_TYPES = [
   {
@@ -211,10 +212,16 @@ export default function ContentTab({
       : {},
   );
   const [generating, setGenerating] = useState({});
-  const [copied, setCopied] = useState(false);
-  const [errors, setErrors] = useState({});
   const [isOutputExpanded, setIsOutputExpanded] = useState(false);
-  const [upgradeGate, setUpgradeGate] = useState(null);
+  const {
+    errors,
+    setErrors,
+    copied,
+    copyToClipboard: copyTextToClipboard,
+    upgradeGate,
+    setUpgradeGate,
+    ensureActionAllowed,
+  } = useCampaignActionLifecycle({ copyResetMs: 2000 });
 
   useEffect(() => {
     setLocalOutputs(outputs || []);
@@ -382,18 +389,12 @@ export default function ContentTab({
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyTextToClipboard(content);
   };
 
   const downloadDocx = async () => {
     if (!content) return;
-    const gate = getActionGate({ plan, action: "export" });
-    if (!gate.allowed) {
-      setUpgradeGate(gate);
-      return;
-    }
+    if (!ensureActionAllowed({ plan, action: "export" })) return;
     await exportDocx(`${campaign.name}-${currentType.label}`, content);
   };
 

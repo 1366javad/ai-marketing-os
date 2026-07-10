@@ -1,6 +1,6 @@
 import { getCampaigns } from "@/app/lib/db/campaigns";
 import { createClient } from "@/app/lib/supabase/server";
-import AdsView from "@/components/campaing/AdsView";
+import AdsView from "@/components/campaing/ads/AdsView";
 
 export default async function AdsPage() {
   const supabase = await createClient();

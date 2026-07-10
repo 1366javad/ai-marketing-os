@@ -47,6 +47,19 @@ module.exports = {
           border: "#334155", // خطوط جداکننده
           accent: "#6366F1", // دکمه‌ها یا لینک‌ها
         },
+
+        assistant: {
+          primary: "#3B3CFF",
+          primaryHover: "#3030E0",
+          accent: "#7B5CFF",
+          surfaceDark: "#13141b",
+        },
+
+        campaign: {
+          primary: "#3B3CFF",
+          primaryLight: "#5B5CFF",
+          accent: "#7B5CFF",
+        },
       },
     },
   },

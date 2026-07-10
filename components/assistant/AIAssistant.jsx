@@ -1,82 +1,97 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useTheme } from "../theme/ThemeProvider";
-import { cn } from "@/lib/utils";
-import { Sparkles, X, Send } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import LoadingDots from "../ui/LoadingDots";
+import { cn } from "@/app/lib/utils/utils";
+import { Send, Sparkles, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { useTheme } from "../theme/ThemeProvider";
+import LoadingDots from "../ui/LoadingDots";
+import {
+  INITIAL_ASSISTANT_MESSAGES,
+  buildAssistantPrompt,
+  createMessage,
+} from "@/app/lib/utils/assistantHelpers";
+
+const assistantClassNames = {
+  floatingButton:
+    "fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-assistant-primary to-assistant-accent text-white shadow-2xl shadow-indigo-500/30 transition-all duration-200 hover:scale-105 hover:shadow-indigo-500/50 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14",
+  panel:
+    "fixed inset-x-3 bottom-3 z-50 flex h-[min(76vh,520px)] flex-col overflow-hidden rounded-2xl border sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[520px] sm:w-[380px]",
+  panelDark:
+    "bg-assistant-surfaceDark/95 border-white/[0.08] shadow-2xl shadow-black/50",
+  panelLight: "bg-white/95 border-slate-200 shadow-2xl shadow-slate-300/50",
+  headerIcon:
+    "w-7 h-7 rounded-lg bg-gradient-to-br from-assistant-primary to-assistant-accent flex items-center justify-center",
+  iconButton: "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+  messageBubble: "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+  userMessage: "bg-assistant-primary text-white rounded-br-md",
+  assistantMessageDark: "bg-white/[0.06] text-slate-300 rounded-bl-md",
+  assistantMessageLight: "bg-slate-100 text-slate-700 rounded-bl-md",
+  sendButton:
+    "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
+  sendButtonActive:
+    "bg-assistant-primary text-white hover:bg-assistant-primaryHover",
+};
 
 export default function AIAssistant() {
   const { theme } = useTheme();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content:
-        "Hi! I'm your AI assistant. Ask me anything about content creation, writing tips, or how to use the studio.",
-    },
-  ]);
+  const [messages, setMessages] = useState(INITIAL_ASSISTANT_MESSAGES);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEnd = useRef(null);
+  const isDark = theme === "dark";
+  const trimmedInput = input.trim();
+  const canSend = Boolean(trimmedInput) && !loading;
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg = { role: "user", content: input.trim() };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setLoading(true);
+    if (canSend) {
+      const userMessage = createMessage("user", trimmedInput);
+      const nextMessages = [...messages, userMessage];
 
-    const conversationHistory = [...messages, userMsg]
-      .map((m) => `${m.role}: ${m.content}`)
-      .join("\n");
-    const response = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a helpful AI content assistant. You help users with writing, content creation, and using the AI Content Studio app. Keep responses concise and helpful.\n\nConversation:\n${conversationHistory}\n\nassistant:`,
-    });
-    setMessages((prev) => [...prev, { role: "assistant", content: response }]);
-    setLoading(false);
+      setMessages(nextMessages);
+      setInput("");
+      setLoading(true);
+
+      try {
+        const response = await base44.integrations.Core.InvokeLLM({
+          prompt: buildAssistantPrompt(nextMessages),
+        });
+
+        setMessages((prev) => [...prev, createMessage("assistant", response)]);
+      } catch (error) {
+        console.error("Failed to send assistant message:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] text-white shadow-2xl shadow-indigo-500/30 transition-all duration-200 hover:scale-105 hover:shadow-indigo-500/50 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
-      >
-        <Sparkles className="w-6 h-6" />
-      </button>
-    );
-  }
-
-  return (
+  const assistantContent = open ? (
     <div
       className={cn(
-        "fixed inset-x-3 bottom-3 z-50 flex h-[min(76vh,520px)] flex-col overflow-hidden rounded-2xl border sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[520px] sm:w-[380px]",
-        theme === "dark"
-          ? "bg-[#13141b]/95 border-white/[0.08] shadow-2xl shadow-black/50"
-          : "bg-white/95 border-slate-200 shadow-2xl shadow-slate-300/50",
+        assistantClassNames.panel,
+        isDark ? assistantClassNames.panelDark : assistantClassNames.panelLight,
         "backdrop-blur-xl",
       )}
     >
-      {/* Header */}
       <div
         className={cn(
           "flex items-center justify-between px-4 py-3 border-b shrink-0",
-          theme === "dark" ? "border-white/[0.06]" : "border-slate-100",
+          isDark ? "border-white/[0.06]" : "border-slate-100",
         )}
       >
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3B3CFF] to-[#7B5CFF] flex items-center justify-center">
+          <div className={assistantClassNames.headerIcon}>
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
           <span
             className={cn(
               "text-sm font-semibold",
-              theme === "dark" ? "text-white" : "text-slate-900",
+              isDark ? "text-white" : "text-slate-900",
             )}
           >
             AI Assistant
@@ -84,10 +99,12 @@ export default function AIAssistant() {
         </div>
         <div className="flex items-center gap-1">
           <button
+            type="button"
+            aria-label="Close AI assistant"
             onClick={() => setOpen(false)}
             className={cn(
-              "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
-              theme === "dark"
+              assistantClassNames.iconButton,
+              isDark
                 ? "hover:bg-white/[0.08] text-slate-400"
                 : "hover:bg-slate-100 text-slate-500",
             )}
@@ -97,32 +114,31 @@ export default function AIAssistant() {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg, i) => (
+        {messages.map((message) => (
           <div
-            key={i}
+            key={message.id}
             className={cn(
               "flex",
-              msg.role === "user" ? "justify-end" : "justify-start",
+              message.role === "user" ? "justify-end" : "justify-start",
             )}
           >
             <div
               className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                msg.role === "user"
-                  ? "bg-[#3B3CFF] text-white rounded-br-md"
-                  : theme === "dark"
-                    ? "bg-white/[0.06] text-slate-300 rounded-bl-md"
-                    : "bg-slate-100 text-slate-700 rounded-bl-md",
+                assistantClassNames.messageBubble,
+                message.role === "user"
+                  ? assistantClassNames.userMessage
+                  : isDark
+                    ? assistantClassNames.assistantMessageDark
+                    : assistantClassNames.assistantMessageLight,
               )}
             >
-              {msg.role === "assistant" ? (
+              {message.role === "assistant" ? (
                 <ReactMarkdown className="prose prose-sm max-w-none dark:prose-invert [&>p]:m-0">
-                  {msg.content}
+                  {message.content}
                 </ReactMarkdown>
               ) : (
-                msg.content
+                message.content
               )}
             </div>
           </div>
@@ -132,7 +148,7 @@ export default function AIAssistant() {
             <div
               className={cn(
                 "rounded-2xl rounded-bl-md px-4 py-3",
-                theme === "dark" ? "bg-white/[0.06]" : "bg-slate-100",
+                isDark ? "bg-white/[0.06]" : "bg-slate-100",
               )}
             >
               <LoadingDots />
@@ -142,39 +158,40 @@ export default function AIAssistant() {
         <div ref={messagesEnd} />
       </div>
 
-      {/* Input */}
       <div
         className={cn(
           "px-3 py-3 border-t shrink-0",
-          theme === "dark" ? "border-white/[0.06]" : "border-slate-100",
+          isDark ? "border-white/[0.06]" : "border-slate-100",
         )}
       >
         <div
           className={cn(
             "flex items-center gap-2 px-3 py-2 rounded-xl",
-            theme === "dark" ? "bg-white/[0.06]" : "bg-slate-50",
+            isDark ? "bg-white/[0.06]" : "bg-slate-50",
           )}
         >
           <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && sendMessage()}
             placeholder="Ask me anything..."
             className={cn(
               "flex-1 bg-transparent outline-none text-sm",
-              theme === "dark"
+              isDark
                 ? "text-white placeholder:text-slate-600"
                 : "text-slate-900 placeholder:text-slate-400",
             )}
           />
           <button
+            type="button"
+            aria-label="Send message"
             onClick={sendMessage}
-            disabled={!input.trim() || loading}
+            disabled={!canSend}
             className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
-              input.trim()
-                ? "bg-[#3B3CFF] text-white hover:bg-[#3030E0]"
-                : theme === "dark"
+              assistantClassNames.sendButton,
+              trimmedInput
+                ? assistantClassNames.sendButtonActive
+                : isDark
                   ? "bg-white/[0.06] text-slate-600"
                   : "bg-slate-200 text-slate-400",
             )}
@@ -184,5 +201,16 @@ export default function AIAssistant() {
         </div>
       </div>
     </div>
+  ) : (
+    <button
+      type="button"
+      aria-label="Open AI assistant"
+      onClick={() => setOpen(true)}
+      className={assistantClassNames.floatingButton}
+    >
+      <Sparkles className="w-6 h-6" />
+    </button>
   );
+
+  return assistantContent;
 }

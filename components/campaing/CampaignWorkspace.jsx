@@ -19,7 +19,7 @@ import SEOTab from "@/components/campaing/SEOTab";
 import ContentTab from "@/components/campaing/ContentTab";
 import CreativeTab from "@/components/campaing/CreativeTab";
 import VideoTab from "@/components/campaing/VideoTab";
-import AdsTab from "@/components/campaing/AdsTab";
+import AdsTab from "@/components/campaing/ads/AdsTab";
 import AssetsTab from "@/components/campaing/AssetsTab";
 import UpgradeModal from "@/components/campaing/UpgradeModal";
 import { getActionGate } from "@/app/lib/plans/planPolicy";
