@@ -13,6 +13,13 @@
     "directory": ".open-next/assets",
   },
 
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://rcidnkcodvcxhwnojerv.supabase.co",
+    "NEXT_PUBLIC_BASE_URL": "https://ai-marketing-os.javad-janjani1366.workers.dev",
+    "OPENAI_MODEL": "gpt-5.5",
+    "GROQ_MODEL": "llama-3.3-70b-versatile",
+  },
+
   "observability": {
     "enabled": true,
   },
