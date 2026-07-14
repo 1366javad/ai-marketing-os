@@ -100,12 +100,13 @@ this being done.
 - **Exit criteria:**
   - Route fully on canonical pipeline (Input Guard → Orchestrator →
     Context Slice → Brief Builder → Agent → Quality → Memory Write).
-  - `legacy/agents/research/` deleted (Step 6 of the migration checklist —
-    not optional).
-  - `migration-map.md` updated to 🟢.
   - At least one end-to-end smoke test on staging producing an
     `auto_saved` `market_research` or `audience_analysis` event that a
     second module can read via `getCampaignContextSlice()`.
+  - `legacy/agents/research/` deleted (Step 6 of the migration checklist —
+    not optional).
+  - Every Exit Criterion verified.
+  - `migration-map.md` updated to 🟢.
 
 ### Sprint B — SEO (net-new canonical agent)
 

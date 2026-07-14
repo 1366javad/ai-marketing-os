@@ -42,12 +42,13 @@ User Input
   ↓
 Marketing Input Guard          (validates prompt quality — see marketing-input-guard.md)
   ↓
-Brief Builder                  (normalizes prompt into a structured task)
-  ↓
-Orchestrator: detectMode()     → TOOL_MODE | CAMPAIGN_MODE
+Orchestrator: detectMode(), resolveModule(), resolveTask()
+                              → execution plan + TOOL_MODE | CAMPAIGN_MODE
   ↓
 [CAMPAIGN_MODE only]
 Orchestrator: getCampaignContextSlice(campaignId, module, task)
+  ↓
+Brief Builder                  (combines validated input, execution plan, and context slice)
   ↓
 Orchestrator: selectAgent(module)
   ↓

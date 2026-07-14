@@ -102,8 +102,8 @@ details of a module, which can change freely.
 | Service | Entry point | Called by | Defined in |
 |---|---|---|---|
 | `OrchestratorService` | `runOrchestrator(request)` | API routes only | `orchestrator/` |
-| `InputGuardService` | `validateInput(rawPrompt)` | `OrchestratorService` (per pipeline order, Section 4) | `input-guard/` |
-| `BriefBuilderService` | `buildBrief(validatedInput, mode)` | `OrchestratorService` | `brief-builder/` |
+| `InputGuardService` | `validateInput(rawPrompt)` | API routes, before `OrchestratorService` (per pipeline order, Section 4) | `input-guard/` |
+| `BriefBuilderService` | `buildBrief(validatedInput, executionPlan, contextSlice)` | `OrchestratorService` | `brief-builder/` |
 | `CampaignMemoryService` | `getCampaignContextSlice(campaignId, module, task, options)`, `writeMemoryEvent(event)` | `OrchestratorService` only | `campaign/` |
 | `AgentService` (one per module) | `runAgent(task, contextSlice \| null)` | `OrchestratorService` only | `agents/<module>/` |
 | `QualityService` | `runQualityChecks(agentOutput, brief)` | `OrchestratorService` | `quality/` |
@@ -125,11 +125,11 @@ Section 2 — reproduced here only as the skeleton other sections reference:
 ```
 Input Guard
   ↓
-Brief Builder
-  ↓
 Orchestrator: detectMode()          → TOOL_MODE | CAMPAIGN_MODE
   ↓
 [CAMPAIGN_MODE only] getCampaignContextSlice()
+  ↓
+Brief Builder
   ↓
 Orchestrator: selectAgent()
   ↓
@@ -436,7 +436,11 @@ implicit multi-agent chaining.
    (Section 3, `orchestrator-design.md`).
 7. Add/verify a `providers/` adapter if a new vendor is required.
 8. Wire the route per the Route Contract Pattern (Section 7.1).
-9. Update `migration-map.md` status for that Tab/Route.
+9. Complete automated tests and the staging smoke test.
+10. Remove the corresponding legacy path.
+11. Verify every sprint Exit Criterion.
+12. Update `migration-map.md` status for that Tab/Route only after the
+    completed state is true.
 
 ### 11.2 Adding a new artifact type to an existing Agent
 
@@ -460,7 +464,7 @@ implicit multi-agent chaining.
 
 This is already fully specified — do not redefine it here. Follow the
 checklist in `migration-map.md`, "Migration checklist (per Tab)" exactly,
-including the mandatory deletion step (Step 6).
+including removal of the legacy path before the final status update.
 
 ---
 

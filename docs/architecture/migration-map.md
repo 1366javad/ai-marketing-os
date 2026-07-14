@@ -56,12 +56,14 @@ To migrate one Tab from Legacy to Canonical, all of these must be done **in orde
 □ 3. Wire Route to canonical pipeline:
        validateInput() → runOrchestrator() → getCampaignContextSlice()
        → buildBrief() → runAgent() → runQualityChecks() → writeMemoryEvent()
-□ 4. Smoke-test end-to-end on staging
-□ 5. Update this file: change Tab status from 🔴 to 🟢
+□ 4. Run the required automated tests
+□ 5. Smoke-test end-to-end on staging
 □ 6. Delete corresponding legacy/agents/<module>/ folder
+□ 7. Verify every sprint Exit Criterion
+□ 8. Update this file: change Tab status from 🔴/🟡 to 🟢
 ```
 
-Step 6 (deletion) is mandatory — a Tab is not "migrated" until the legacy code that served it is gone. Leaving both alive means two code paths can diverge silently.
+Step 6 (deletion) is mandatory — a Tab is not "migrated" until the legacy code that served it is gone. Leaving both alive means two code paths can diverge silently. Step 8 is always last: this map records completed reality and must not be updated until every Exit Criterion is verified.
 
 ---
 
