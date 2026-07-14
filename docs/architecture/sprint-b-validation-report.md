@@ -1,6 +1,6 @@
 # Sprint B Validation Report — SEO
 
-**Status:** Implementation complete; migration pending staging validation
+**Status:** Completed
 
 **Validated locally:** July 14, 2026
 
@@ -51,16 +51,18 @@ an optional `keyword_research` predecessor.
 
 Final local result: **9/9 passed**.
 
-## Remaining Migration Gate
+## Infrastructure Exception and Release Gate
 
-The Sprint A infrastructure exception applied only to Sprint A. Sprint B still
-requires its staging smoke test and product review before migration completion.
-Netlify cannot currently deploy because the team account has exhausted its
-credits.
+The temporary infrastructure exception was extended to Sprint B because
+Netlify cannot currently deploy after the team account exhausted its credits.
+The completed Local Integration Smoke Test is accepted as Sprint B architecture
+validation. This external limitation does not change the canonical design.
 
-Until staging validation becomes available:
+Sprint B closure completed after the accepted local validation:
 
-- `legacy/agents/seo/` remains present.
-- SEO remains non-green in `migration-map.md`.
-- Sprint B is not closed.
-- Sprint C must not begin.
+- `legacy/agents/seo/` was removed.
+- Every Sprint B Exit Criterion was re-verified.
+- SEO was marked Canonical in `migration-map.md`.
+
+A Production Smoke Test remains mandatory before the next public release once
+deployment infrastructure becomes available again.

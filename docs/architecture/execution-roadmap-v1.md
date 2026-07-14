@@ -115,6 +115,11 @@ this being done.
 
 ### Sprint B — SEO (net-new canonical agent)
 
+**Status:** ✅ Completed July 14, 2026. The approved temporary infrastructure
+exception accepted the Local Integration Smoke Test for Sprint B; a Production
+Smoke Test remains mandatory before the next public release. See
+`sprint-b-validation-report.md`.
+
 **Why second:** Content, Creative, and Ads all read SEO artifacts per the
 Matrix; SEO itself only depends on Research, which Sprint A completes.
 

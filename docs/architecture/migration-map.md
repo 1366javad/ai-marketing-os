@@ -20,7 +20,7 @@
 | Tab | Route (approximate) | Status | Legacy entry point | Canonical agent |
 |---|---|---|---|---|
 | Research | `/api/research/generate` | 🟢 Canonical | None — removed after Sprint A validation | `agents/research/` — Research Agent V2 built and validated |
-| SEO | `/api/ai/seo` | 🔴 Legacy | `legacy/agents/seo/index.js` | `agents/seo/` — not yet built |
+| SEO | `/api/seo/generate` | 🟢 Canonical | None — removed after Sprint B validation | `agents/seo/` — SEO Agent V2 built and validated |
 | Content | `/api/content/generate` | 🟡 In Progress | `legacy/agents/content/index.js` (kept archived during Sprint 10A) | `agents/content/` — Content Agent V2 built |
 | Creative | `/api/ai/creative` | 🔴 Legacy | `legacy/agents/creative/index.js` | `agents/creative/` — not yet built |
 | Video | `/api/ai/video` | 🔴 Legacy | `legacy/agents/video/index.js` | `agents/video/` — not yet built |
@@ -42,8 +42,8 @@ Status table above.
 | Marketing Input Guard | `app/lib/ai/input-guard/` | ✅ Built + smoke-tested |
 | Brief Builder | `app/lib/ai/brief-builder/` | ✅ Built + smoke-tested |
 | Quality Layer | `app/lib/ai/quality/` | ✅ Built + smoke-tested |
-| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research canonical |
-| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research validated |
+| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research and SEO canonical |
+| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research/SEO validated |
 
 ---
 
