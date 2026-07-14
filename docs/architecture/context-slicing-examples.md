@@ -63,7 +63,18 @@ getCampaignContextSlice("camp_123", "seo", "generate keyword list")
 }
 ```
 
-**Resolved edge case:** SEO does *not* read `keyword_idea` events from itself or prior SEO runs in this version. Each SEO call is independent; if the campaign needs "don't repeat previous keywords" logic, that's a future enhancement (flag in Open Items, not solved here) — not a silent default behavior.
+**Resolved edge case:** SEO uses a progressive, task-specific predecessor
+allowlist. `keyword_research` reads no previous SEO artifact;
+`keyword_cluster` may read only `keyword_research`; `topic_cluster` may read
+only `keyword_research` and `keyword_cluster`; `seo_strategy` may read those
+three predecessors; and `meta_description`/`faq_generation` may read the four
+earlier stages but never each other. Only approved or `auto_saved` predecessors
+from the same campaign are visible.
+
+The dependency is advisory. If an allowed predecessor is absent, the call
+continues and the missing artifact appears in dependency diagnostics. Context
+Slice never loads every historical SEO event and never exposes a later-stage
+artifact to an earlier task.
 
 ---
 

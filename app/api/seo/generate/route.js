@@ -5,6 +5,8 @@ import { validateInput } from "@/app/lib/ai/input-guard";
 import { runOrchestrator } from "@/app/lib/ai/orchestrator";
 import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
 import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter, toSupabaseMemoryRow } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
+import { writeMemoryEvent } from "@/app/lib/ai/campaign/events/writeMemoryEvent";
 import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
   formatSeoMarkdown,
@@ -122,6 +124,7 @@ export async function POST(request) {
       normalizedTask,
       normalizedPrompt: guard.normalizedPrompt,
       relevantEvents: contextSlice?.relevantEvents || [],
+      dependencyDiagnostics: contextSlice?.dependencyDiagnostics || null,
     };
 
     const seoOutput = await runSeoAgent({
@@ -184,6 +187,14 @@ export async function POST(request) {
 
     return Response.json({
       success: true,
+      artifact: memoryEvent.artifact,
+      approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
+      riskLevel: quality.riskLevel,
+      summary: memoryEvent.summary,
+      payload: memoryEvent.payload,
+      ...(contextSlice
+        ? { contextVersion: contextSlice.contextVersion }
+        : {}),
       output: memoryWrite.output || {
         type: normalizedTask,
         title: seoOutput.title,
@@ -235,14 +246,18 @@ function normalizeSeoTask(task) {
     keyword_research: "keywords",
     clusters: "clusters",
     keyword_clusters: "clusters",
+    keyword_cluster: "clusters",
     topics: "topics",
     topic_clusters: "topics",
+    topic_cluster: "topics",
     strategy: "strategy",
     seo_strategy: "strategy",
     meta: "meta",
     meta_descriptions: "meta",
+    meta_description: "meta",
     faq: "faq",
     faqs: "faq",
+    faq_generation: "faq",
   };
 
   return map[normalized] || "keywords";
@@ -308,14 +323,13 @@ async function safeWriteSeoMemory({
   }
 
   const generatedAt = new Date().toISOString();
-  const eventRow = {
-    campaign_id: campaign.id,
-    type: memoryEvent.artifact,
+  const canonicalEvent = {
+    campaignId: campaign.id,
     module: memoryEvent.module,
     artifact: memoryEvent.artifact,
-    approval_status: quality.approvalRequired ? "pending" : "auto_saved",
+    approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
     confidence: quality.score,
-    risk_level: quality.riskLevel,
+    riskLevel: quality.riskLevel,
     task: executionPlan.task,
     summary: memoryEvent.summary,
     payload: {
@@ -323,16 +337,14 @@ async function safeWriteSeoMemory({
       generatedAt,
     },
     supersedes: null,
-    created_by: user.id,
+    createdBy: user.id,
   };
+  const eventRow = toSupabaseMemoryRow(canonicalEvent);
 
-  const { data, error } = await supabase
-    .from("campaign_memory_events")
-    .insert(eventRow)
-    .select()
-    .single();
-
-  if (!error) {
+  try {
+    const data = await writeMemoryEvent(canonicalEvent, {
+      dbAdapter: createSupabaseMemoryWriter(supabase),
+    });
     return {
       output: {
         type: executionPlan.task,
@@ -346,36 +358,36 @@ async function safeWriteSeoMemory({
       },
       memory: { saved: true, storage: "campaign_memory_events", event: data },
     };
+  } catch (error) {
+    console.warn("SEO memory write failed; falling back to campaign_outputs:", {
+      message: error.message,
+      code: error.code,
+    });
+
+    const output = await createCampaignOutput({
+      campaignId: campaign.id,
+      module: "seo",
+      type: executionPlan.task,
+      title: seoOutput.title,
+      prompt,
+      content: markdown,
+      metadata: {
+        canonical: true,
+        quality,
+        memoryEvent: eventRow,
+        ...seoOutput.metadata,
+        generatedAt,
+      },
+    });
+
+    return {
+      output,
+      memory: {
+        saved: false,
+        fallbackSaved: true,
+        storage: "campaign_outputs",
+        error: error.message,
+      },
+    };
   }
-
-  console.warn("SEO memory write failed; falling back to campaign_outputs:", {
-    message: error.message,
-    code: error.code,
-  });
-
-  const output = await createCampaignOutput({
-    campaignId: campaign.id,
-    module: "seo",
-    type: executionPlan.task,
-    title: seoOutput.title,
-    prompt,
-    content: markdown,
-    metadata: {
-      canonical: true,
-      quality,
-      memoryEvent: eventRow,
-      ...seoOutput.metadata,
-      generatedAt,
-    },
-  });
-
-  return {
-    output,
-    memory: {
-      saved: false,
-      fallbackSaved: true,
-      storage: "campaign_outputs",
-      error: error.message,
-    },
-  };
 }

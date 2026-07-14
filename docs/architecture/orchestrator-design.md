@@ -88,7 +88,11 @@ function classifyRisk(agentOutput):
 
 | Event Type | Minimum Risk Floor |
 | --- | --- |
-| `research_insight`, `keyword_idea` | low |
+| `research_insight`, `keyword_idea` | low (legacy event-type aliases) |
+| `keyword_research`, `keyword_cluster` | low |
+| `topic_cluster` | medium |
+| `seo_strategy` | high |
+| `meta_description`, `faq_generation` | medium |
 | `content_draft`, `email_draft`, `blog_draft`, `creative_concept` | medium |
 | `image_asset` | medium |
 | `ad_copy` | high |
@@ -147,4 +151,7 @@ Each agent is a pure function from the Orchestrator's perspective: `(task, conte
 
 - **Multi-Agent Routing**: a single user request that requires more than one agent (e.g. "build me a campaign" touching Research → SEO → Content in sequence). Not yet specified — needs its own design doc before implementation, since it changes how Risk Gate applies (gate per-agent-output, or gate once at the end of a chain?).
 - **Campaign Learning Loop**: how `analytics` module outputs (performance data) feed back into other agents' future context. Not yet specified.
-- **Context Slicing granularity**: `getCampaignContextSlice()` is defined to return only fields relevant to `module + task`, but the exact per-module field map (what SEO needs vs. what Creative needs) is defined in `campaign-memory-v1.md` only as illustrative examples, not as an enforced lookup table. Needs a concrete mapping before `getCampaignContextSlice()` is implemented.
+- **Context Slicing granularity**: per-module field and artifact maps are
+  enforced by `context-slicing-matrix.md`. SEO additionally has an approved
+  task-level predecessor allowlist under ACR-003. Task-level slicing for other
+  modules remains an open item and must not be added ad hoc.

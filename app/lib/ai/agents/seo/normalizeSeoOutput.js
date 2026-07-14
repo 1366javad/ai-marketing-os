@@ -41,6 +41,7 @@ function normalizeSeoOutput(providerResult, { brief } = {}) {
         providerResult?.provider === "pollinations",
       confidence: 0,
       generatedAt: new Date().toISOString(),
+      dependencyDiagnostics: brief?.dependencyDiagnostics || null,
     },
   };
 

@@ -107,15 +107,19 @@ const TASK_ALIASES = Object.freeze({
   keyword_research: "keywords",
   clusters: "clusters",
   keyword_clusters: "clusters",
+  keyword_cluster: "clusters",
   topics: "topics",
   topic_clusters: "topics",
+  topic_cluster: "topics",
   strategy: "strategy",
   seo_strategy: "strategy",
   meta: "meta",
   metas: "meta",
   meta_descriptions: "meta",
+  meta_description: "meta",
   faq: "faq",
   faqs: "faq",
+  faq_generation: "faq",
 });
 
 function buildSeoPrompt({ brief, executionPlan }) {

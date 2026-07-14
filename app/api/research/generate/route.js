@@ -412,6 +412,14 @@ export async function POST(request) {
     });
     return Response.json({
       success: true,
+      artifact: memoryEvent.artifact,
+      approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
+      riskLevel: quality.riskLevel,
+      summary: memoryEvent.summary,
+      payload: memoryEvent.payload,
+      ...(contextSlice
+        ? { contextVersion: contextSlice.contextVersion }
+        : {}),
       output: memoryWrite.output || {
         type: normalizedTask,
         title: researchOutput.title,

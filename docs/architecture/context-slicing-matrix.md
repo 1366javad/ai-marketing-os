@@ -76,6 +76,26 @@ This is a recommendation, not a hard block. A user can generate meta_description
 before seo_strategy exists — it will just have less context to work with
 (lower confidence score reflects this).
 
+### SEO task-level predecessor allowlist
+
+SEO context is bounded by both module and task. A task may read only the
+approved or `auto_saved` predecessor artifacts listed below from the same
+campaign; it never receives all historical SEO events.
+
+| SEO task | Visible prior SEO artifacts |
+|---|---|
+| `keyword_research` | none |
+| `keyword_cluster` | `keyword_research` |
+| `topic_cluster` | `keyword_research`, `keyword_cluster` |
+| `seo_strategy` | `keyword_research`, `keyword_cluster`, `topic_cluster` |
+| `meta_description` | `keyword_research`, `keyword_cluster`, `topic_cluster`, `seo_strategy` |
+| `faq_generation` | `keyword_research`, `keyword_cluster`, `topic_cluster`, `seo_strategy` |
+
+`meta_description` and `faq_generation` are parallel downstream tasks and do
+not read each other. Missing predecessors do not block execution; Context Slice
+returns explicit dependency diagnostics so the Agent can proceed with reduced
+context. Pending, failed, rejected, and superseded artifacts are not visible.
+
 ---
 
 ## Cross-Module Rule

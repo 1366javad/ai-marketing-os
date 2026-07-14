@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const { runQualityChecks } = require("../../quality");
+const { classifyOutputRisk } = require("../../quality/classifyOutputRisk");
 const {
   buildSeoPrompt,
   normalizeSeoOutput,
@@ -208,4 +209,30 @@ const quality = runQualityChecks(
 );
 assert.equal(quality.riskLevel, "low");
 assert.equal(quality.approvalRequired, false);
+
+const seoRiskFloors = {
+  keyword_research: "low",
+  keyword_cluster: "low",
+  topic_cluster: "medium",
+  seo_strategy: "high",
+  meta_description: "medium",
+  faq_generation: "medium",
+};
+
+for (const [artifact, expectedRisk] of Object.entries(seoRiskFloors)) {
+  const risk = classifyOutputRisk(
+    {
+      eventType: "keyword_idea",
+      artifact,
+      suggestedRiskLevel: null,
+    },
+    executionPlan,
+  );
+  assert.equal(risk.riskLevel, expectedRisk, `${artifact} risk floor`);
+  assert.equal(
+    risk.approvalRequired,
+    expectedRisk !== "low",
+    `${artifact} approval requirement`,
+  );
+}
 console.log("SEO Agent V2 smoketest passed");

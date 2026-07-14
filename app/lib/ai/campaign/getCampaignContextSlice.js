@@ -41,6 +41,7 @@ const { resolveSupersedes } = require("./filters/resolveSupersedes");
 const { getModuleContextFields } = require("./matrix/getModuleContextFields");
 const {
   getModuleArtifactSelectors,
+  getSeoPredecessorArtifacts,
 } = require("./matrix/getModuleEventTypes");
 const {
   canonicalizeMemoryEvent,
@@ -94,7 +95,7 @@ async function getCampaignContextSlice(campaignId, module, task, options = {}) {
   });
 
   // 2. Determine which event types this module is allowed to see (Matrix)
-  const artifactSelectors = getModuleArtifactSelectors(module);
+  const artifactSelectors = getModuleArtifactSelectors(module, task);
 
   // 3. Load raw events, pre-filtered by type at the query level where possible
   const rawEvents = await loadCampaignEvents(campaignId, {
@@ -121,7 +122,11 @@ async function getCampaignContextSlice(campaignId, module, task, options = {}) {
   const confidenceFiltered = applyConfidenceRules(riskFiltered, { minConfidence });
 
   // 8. Resolve supersedes chains — only events that survived filtering can win
-  const relevantEvents = resolveSupersedes(confidenceFiltered);
+  const resolvedEvents = resolveSupersedes(confidenceFiltered);
+  const relevantEvents =
+    module === "seo"
+      ? boundSeoPredecessorHistory(resolvedEvents)
+      : resolvedEvents;
 
   // 9. Slice the Context Object to the fields this module is allowed to see
   const allowedContextFields = getModuleContextFields(module); // string[] | null (null = full object)
@@ -130,11 +135,55 @@ async function getCampaignContextSlice(campaignId, module, task, options = {}) {
       ? fullContext
       : pickFields(fullContext, allowedContextFields);
 
-  return {
+  const result = {
     context,
     relevantEvents,
     contextVersion: fullContext.contextVersion,
   };
+
+  if (module === "seo") {
+    result.dependencyDiagnostics = buildSeoDependencyDiagnostics(
+      task,
+      relevantEvents,
+    );
+  }
+
+  return result;
+}
+
+function boundSeoPredecessorHistory(events) {
+  const latestByArtifact = new Map();
+
+  for (const event of [...events].sort(compareNewestFirst)) {
+    const key = `${event.module}:${event.artifact}`;
+    if (!latestByArtifact.has(key)) latestByArtifact.set(key, event);
+  }
+
+  return [...latestByArtifact.values()];
+}
+
+function buildSeoDependencyDiagnostics(task, events) {
+  const allowedPredecessors = getSeoPredecessorArtifacts(task);
+  const visiblePredecessors = allowedPredecessors.filter((artifact) =>
+    events.some((event) => event.module === "seo" && event.artifact === artifact),
+  );
+  const missingPredecessors = allowedPredecessors.filter(
+    (artifact) => !visiblePredecessors.includes(artifact),
+  );
+
+  return {
+    allowedPredecessors,
+    visiblePredecessors,
+    missingPredecessors,
+    reducedContext: missingPredecessors.length > 0,
+  };
+}
+
+function compareNewestFirst(left, right) {
+  const leftTime = Date.parse(left.createdAt || "") || 0;
+  const rightTime = Date.parse(right.createdAt || "") || 0;
+  if (leftTime !== rightTime) return rightTime - leftTime;
+  return String(right.id || "").localeCompare(String(left.id || ""));
 }
 
 /**
