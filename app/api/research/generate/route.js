@@ -5,6 +5,8 @@ import { validateInput } from "@/app/lib/ai/input-guard";
 import { runOrchestrator } from "@/app/lib/ai/orchestrator";
 import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
 import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter, toSupabaseMemoryRow } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
+import { writeMemoryEvent } from "@/app/lib/ai/campaign/events/writeMemoryEvent";
 import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
   formatResearchMarkdown,
@@ -538,14 +540,13 @@ async function safeWriteResearchMemory({
   }
 
   const generatedAt = new Date().toISOString();
-  const eventRow = {
-    campaign_id: campaign.id,
-    type: memoryEvent.artifact,
+  const canonicalEvent = {
+    campaignId: campaign.id,
     module: memoryEvent.module,
     artifact: memoryEvent.artifact,
-    approval_status: quality.approvalRequired ? "pending" : "auto_saved",
+    approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
     confidence: quality.score,
-    risk_level: quality.riskLevel,
+    riskLevel: quality.riskLevel,
     task: executionPlan.task,
     summary: memoryEvent.summary,
     payload: {
@@ -553,25 +554,15 @@ async function safeWriteResearchMemory({
       generatedAt,
     },
     supersedes: null,
-    created_by: user.id,
+    createdBy: user.id,
   };
+  const eventRow = toSupabaseMemoryRow(canonicalEvent);
 
-  let data;
-  let error;
   try {
-    const insertResult = await supabase
-      .from("campaign_memory_events")
-      .insert(eventRow)
-      .select()
-      .single();
-    data = insertResult.data;
-    error = insertResult.error;
-  } catch (insertError) {
-    logError?.("Campaign memory event insert threw.", insertError);
-    throw insertError;
-  }
+    const data = await writeMemoryEvent(canonicalEvent, {
+      dbAdapter: createSupabaseMemoryWriter(supabase),
+    });
 
-  if (!error) {
     return {
       output: {
         type: executionPlan.task,
@@ -585,62 +576,63 @@ async function safeWriteResearchMemory({
       },
       memory: { saved: true, storage: "campaign_memory_events", event: data },
     };
-  }
-
-  console.warn("Research memory write failed; falling back to campaign_outputs:", {
-    message: error.message,
-    code: error.code,
-  });
-
-  try {
-    log?.("Campaign output fallback write started.");
-    const output = await createCampaignOutput({
-      campaignId: campaign.id,
-      module: "research",
-      type: executionPlan.task,
-      title: researchOutput.title,
-      prompt,
-      content: markdown,
-      metadata: {
-        canonical: true,
-        quality,
-        memoryEvent: eventRow,
-        ...researchOutput.metadata,
-        generatedAt,
-      },
+  } catch (insertError) {
+    logError?.("Campaign memory event insert threw.", insertError);
+    console.warn("Research memory write failed; falling back to campaign_outputs:", {
+      message: insertError.message,
+      code: insertError.code,
     });
-    log?.("Campaign output fallback write finished.");
 
-    return {
-      output,
-      memory: {
-        saved: false,
-        fallbackSaved: true,
-        storage: "campaign_outputs",
-        error: error.message,
-      },
-    };
-  } catch (fallbackError) {
-    logError?.("Campaign output fallback write failed.", fallbackError);
-    console.warn("Research fallback write failed:", fallbackError);
-
-    return {
-      output: {
+    try {
+      log?.("Campaign output fallback write started.");
+      const output = await createCampaignOutput({
+        campaignId: campaign.id,
+        module: "research",
         type: executionPlan.task,
         title: researchOutput.title,
         prompt,
         content: markdown,
         metadata: {
+          canonical: true,
+          quality,
+          memoryEvent: eventRow,
           ...researchOutput.metadata,
           generatedAt,
         },
-      },
-      memory: {
-        saved: false,
-        fallbackSaved: false,
-        error: error.message,
-        fallbackError: fallbackError.message,
-      },
-    };
+      });
+      log?.("Campaign output fallback write finished.");
+
+      return {
+        output,
+        memory: {
+          saved: false,
+          fallbackSaved: true,
+          storage: "campaign_outputs",
+          error: insertError.message,
+        },
+      };
+    } catch (fallbackError) {
+      logError?.("Campaign output fallback write failed.", fallbackError);
+      console.warn("Research fallback write failed:", fallbackError);
+
+      return {
+        output: {
+          type: executionPlan.task,
+          title: researchOutput.title,
+          prompt,
+          content: markdown,
+          metadata: {
+            ...researchOutput.metadata,
+            generatedAt,
+          },
+        },
+        memory: {
+          saved: false,
+          fallbackSaved: false,
+          error: insertError.message,
+          fallbackError: fallbackError.message,
+        },
+      };
+    }
   }
 }

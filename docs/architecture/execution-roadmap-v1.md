@@ -90,6 +90,11 @@ which sprint and what "done" means for Phase 1 purposes.
 
 ### Sprint A — Finish Research (complete the 🟡 → 🟢 transition)
 
+**Status:** ✅ Completed July 14, 2026. Validated by the approved Sprint A
+Local Integration Smoke Test exception; Production Smoke Test deferred until
+deployment infrastructure is available and required before the next public
+release. See `sprint-a-completion-report.md`.
+
 **Why first:** every other agent's Shared Intelligence depends on approved
 Research output existing. Nothing else can be meaningfully demoed without
 this being done.

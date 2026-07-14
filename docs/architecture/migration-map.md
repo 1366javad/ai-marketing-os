@@ -1,6 +1,6 @@
 # Migration Map
 
-**Last updated:** June 2026  
+**Last updated:** July 14, 2026
 **Purpose:** Single source of truth for which parts of AI Marketing OS are running on Legacy architecture vs Canonical architecture. Anyone touching a Tab or Route must check this file first.
 
 ---
@@ -19,7 +19,7 @@
 
 | Tab | Route (approximate) | Status | Legacy entry point | Canonical agent |
 |---|---|---|---|---|
-| Research | `/api/research/generate` | 🟡 In Progress | `legacy/agents/research/index.js` (kept archived during Sprint 11A) | `agents/research/` — Research Agent V2 built |
+| Research | `/api/research/generate` | 🟢 Canonical | None — removed after Sprint A validation | `agents/research/` — Research Agent V2 built and validated |
 | SEO | `/api/ai/seo` | 🔴 Legacy | `legacy/agents/seo/index.js` | `agents/seo/` — not yet built |
 | Content | `/api/content/generate` | 🟡 In Progress | `legacy/agents/content/index.js` (kept archived during Sprint 10A) | `agents/content/` — Content Agent V2 built |
 | Creative | `/api/ai/creative` | 🔴 Legacy | `legacy/agents/creative/index.js` | `agents/creative/` — not yet built |
@@ -29,9 +29,10 @@
 
 ---
 
-## Canonical infrastructure status (built, not yet wired to any Route)
+## Canonical infrastructure status
 
-These modules exist and are tested but no UI Route calls them yet:
+These modules exist and are tested. Route adoption is tracked in the Tab / Route
+Status table above.
 
 | Module | Location | Status |
 |---|---|---|
@@ -41,8 +42,8 @@ These modules exist and are tested but no UI Route calls them yet:
 | Marketing Input Guard | `app/lib/ai/input-guard/` | ✅ Built + smoke-tested |
 | Brief Builder | `app/lib/ai/brief-builder/` | ✅ Built + smoke-tested |
 | Quality Layer | `app/lib/ai/quality/` | ✅ Built + smoke-tested |
-| Agents | `app/lib/ai/agents/` | 🔴 Not yet built |
-| Providers (canonical) | `app/lib/ai/providers/` | 🔴 Not yet built |
+| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research canonical |
+| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research validated |
 
 ---
 
