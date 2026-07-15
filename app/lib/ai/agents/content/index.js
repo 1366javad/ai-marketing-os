@@ -59,25 +59,7 @@ function resolveContentEventType(type) {
 }
 
 function resolveContentArtifact(type) {
-  const normalized = String(type || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  const map = {
-    blog: "blog_post",
-    blog_post: "blog_post",
-    email: "email",
-    newsletter: "newsletter",
-    landing: "landing_page",
-    landing_page: "landing_page",
-    case_study: "case_study",
-    linkedin: "linkedin_post",
-    linkedin_post: "linkedin_post",
-    instagram: "instagram_caption",
-    instagram_caption: "instagram_caption",
-  };
-
-  return map[normalized] || normalized || "blog_post";
+  return resolveContentEventType(type);
 }
 
 module.exports = {

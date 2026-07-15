@@ -5,6 +5,8 @@ import { validateInput } from "@/app/lib/ai/input-guard";
 import { runOrchestrator } from "@/app/lib/ai/orchestrator";
 import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
 import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter, toSupabaseMemoryRow } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
+import { writeMemoryEvent } from "@/app/lib/ai/campaign/events/writeMemoryEvent";
 import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
   runContentAgent,
@@ -295,76 +297,73 @@ async function safeWriteContentMemory({
   }
 
   const approvalStatus = quality.approvalRequired ? "pending" : "auto_saved";
-  const eventRow = {
-    campaign_id: campaign.id,
-    type: memoryEvent.artifact,
+  const canonicalEvent = {
+    campaignId: campaign.id,
     module: memoryEvent.module,
     artifact: memoryEvent.artifact,
-    approval_status: approvalStatus,
+    approvalStatus,
     confidence: quality.score,
-    risk_level: quality.riskLevel,
+    riskLevel: quality.riskLevel,
     task: executionPlan.task,
     summary: memoryEvent.summary,
     payload: memoryEvent.payload,
     supersedes: null,
-    created_by: user.id,
+    createdBy: user.id,
   };
+  const eventRow = toSupabaseMemoryRow(canonicalEvent);
 
-  const { data, error } = await supabase
-    .from("campaign_memory_events")
-    .insert(eventRow)
-    .select()
-    .single();
-
-  if (!error) {
+  try {
+    const data = await writeMemoryEvent(canonicalEvent, {
+      dbAdapter: createSupabaseMemoryWriter(supabase),
+    });
     return {
       output: contentOutput,
       memory: { saved: true, storage: "campaign_memory_events", event: data },
     };
-  }
-
-  console.warn("Campaign Memory write failed; falling back to campaign_outputs:", {
-    message: error.message,
-    code: error.code,
-  });
-
-  try {
-    const output = await createCampaignOutput({
-      campaignId: campaign.id,
-      module: "content",
-      type: contentOutput.type,
-      title: contentOutput.title,
-      prompt,
-      content: contentOutput.content,
-      metadata: {
-        cta: contentOutput.cta,
-        canonical: true,
-        quality,
-        memoryEvent: eventRow,
-        ...contentOutput.metadata,
-      },
+  } catch (error) {
+    console.warn("Campaign Memory write failed; falling back to campaign_outputs:", {
+      message: error.message,
+      code: error.code,
     });
 
-    return {
-      output,
-      memory: {
-        saved: false,
-        fallbackSaved: true,
-        storage: "campaign_outputs",
-        error: error.message,
-      },
-    };
-  } catch (fallbackError) {
-    console.warn("Campaign Memory fallback write failed:", fallbackError);
+    try {
+      const output = await createCampaignOutput({
+        campaignId: campaign.id,
+        module: "content",
+        type: contentOutput.type,
+        title: contentOutput.title,
+        prompt,
+        content: contentOutput.content,
+        metadata: {
+          cta: contentOutput.cta,
+          canonical: true,
+          quality,
+          memoryEvent: eventRow,
+          ...contentOutput.metadata,
+        },
+      });
 
-    return {
-      output: contentOutput,
-      memory: {
-        saved: false,
-        fallbackSaved: false,
-        error: error.message,
-        fallbackError: fallbackError.message,
-      },
-    };
+      return {
+        output,
+        memory: {
+          saved: false,
+          fallbackSaved: true,
+          storage: "campaign_outputs",
+          error: error.message,
+        },
+      };
+    } catch (fallbackError) {
+      console.warn("Campaign Memory fallback write failed:", fallbackError);
+
+      return {
+        output: contentOutput,
+        memory: {
+          saved: false,
+          fallbackSaved: false,
+          error: error.message,
+          fallbackError: fallbackError.message,
+        },
+      };
+    }
   }
 }

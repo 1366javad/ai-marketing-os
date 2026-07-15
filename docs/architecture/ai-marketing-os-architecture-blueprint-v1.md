@@ -229,7 +229,8 @@ in this document:
 > needed to re-derive the insight itself.
 
 Mechanically, this happens because all four agents' context slices include
-the approved `research_insight` event (see `context-slicing-matrix.md`,
+the approved canonical Research event (for example,
+`research + audience_analysis`; see `context-slicing-matrix.md`,
 Writer→Reader table) — the coordination is a side effect of shared,
 approved memory, not a special "broadcast" mechanism.
 

@@ -27,8 +27,8 @@
 // Modules with multiple write types (e.g. Content: blog_draft + email_draft) use
 // the HIGHER of the two floors as the prediction, to avoid under-promising approval needs.
 const MODULE_PRIMARY_RISK_FLOOR = Object.freeze({
-  research: "low", // research_insight
-  seo: "low", // keyword_idea
+  research: "low", // canonical Research artifacts
+  seo: "low", // canonical SEO task artifact; final floor is artifact-specific
   content: "medium", // blog_draft / email_draft (both medium — no conflict)
   creative: "medium", // creative_concept / image_asset (both medium)
   ads: "high", // ad_copy

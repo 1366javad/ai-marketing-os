@@ -1,6 +1,6 @@
 # Migration Map
 
-**Last updated:** July 14, 2026
+**Last updated:** July 15, 2026
 **Purpose:** Single source of truth for which parts of AI Marketing OS are running on Legacy architecture vs Canonical architecture. Anyone touching a Tab or Route must check this file first.
 
 ---
@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | Research | `/api/research/generate` | 🟢 Canonical | None — removed after Sprint A validation | `agents/research/` — Research Agent V2 built and validated |
 | SEO | `/api/seo/generate` | 🟢 Canonical | None — removed after Sprint B validation | `agents/seo/` — SEO Agent V2 built and validated |
-| Content | `/api/content/generate` | 🟡 In Progress | `legacy/agents/content/index.js` (kept archived during Sprint 10A) | `agents/content/` — Content Agent V2 built |
+| Content | `/api/content/generate` | 🟢 Canonical | None — removed after Sprint C validation | `agents/content/` — Content Agent V2 built and validated |
 | Creative | `/api/ai/creative` | 🔴 Legacy | `legacy/agents/creative/index.js` | `agents/creative/` — not yet built |
 | Video | `/api/ai/video` | 🔴 Legacy | `legacy/agents/video/index.js` | `agents/video/` — not yet built |
 | Ads | `/api/ai/ads` | 🔴 Legacy | `legacy/agents/ads/index.js` | `agents/ads/` — not yet built |
@@ -42,8 +42,8 @@ Status table above.
 | Marketing Input Guard | `app/lib/ai/input-guard/` | ✅ Built + smoke-tested |
 | Brief Builder | `app/lib/ai/brief-builder/` | ✅ Built + smoke-tested |
 | Quality Layer | `app/lib/ai/quality/` | ✅ Built + smoke-tested |
-| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research and SEO canonical |
-| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research/SEO validated |
+| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research, SEO, and Content canonical |
+| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research/SEO/Content validated |
 
 ---
 

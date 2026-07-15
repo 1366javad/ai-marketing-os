@@ -80,13 +80,10 @@ function mapMemoryRow(row) {
 
 function mapCampaignOutput(row) {
   const memoryEvent = row.metadata?.memoryEvent || {};
-  const memoryModule = row.module || memoryEvent.module;
+  const memoryModule = memoryEvent.module || row.module;
   const artifact = resolveMemoryArtifact({
     module: memoryModule,
     artifact: memoryEvent.artifact,
-    type: row.type || memoryEvent.type,
-    task: memoryEvent.task,
-    payload: memoryEvent.payload || row.metadata,
   });
 
   if (!memoryModule || !artifact) return null;

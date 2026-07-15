@@ -28,6 +28,8 @@ const baseBrief = { module: "ads", platforms: ["Instagram"], goal: "lead_generat
 console.log("\n1. Valid ad_copy");
 const validAd = {
   eventType: "ad_copy",
+  module: "ads",
+  artifact: "ad_copy",
   summary: "Instagram ad for QuestApply targeting international students",
   payload: {
     headline: "Your Visa Journey Starts Here",
@@ -46,6 +48,8 @@ assert("score is 1.0", r1.score === 1.0);
 console.log("\n2. ad_copy missing headline");
 const missingHeadline = {
   eventType: "ad_copy",
+  module: "ads",
+  artifact: "ad_copy",
   summary: "An ad",
   payload: { body: "Some body text with a clear call to action. Sign up now!", cta: "Sign up" },
 };
@@ -59,6 +63,8 @@ assert("recommendations present", r2.recommendations.length > 0);
 console.log("\n3. ad_copy with no CTA");
 const noCta = {
   eventType: "ad_copy",
+  module: "ads",
+  artifact: "ad_copy",
   summary: "An ad with no call to action",
   payload: {
     headline: "Great Product Available",
@@ -75,6 +81,8 @@ const contentPlan = { ...basePlan, module: "content", task: "blog_post", riskLev
 const contentBrief = { ...baseBrief, module: "content", platforms: [] };
 const placeholder = {
   eventType: "blog_draft",
+  module: "content",
+  artifact: "blog_draft",
   summary: "A blog post",
   payload: {
     title: "Your Complete Guide",
@@ -90,6 +98,8 @@ console.log("\n5. Twitter ad over char limit");
 const twitterBrief = { ...baseBrief, platforms: ["Twitter"] };
 const longTwitterAd = {
   eventType: "ad_copy",
+  module: "ads",
+  artifact: "ad_copy",
   summary: "Twitter ad",
   payload: {
     headline: "Short",
@@ -106,6 +116,8 @@ const researchPlan = { ...basePlan, module: "research", task: "audience_research
 const researchBrief = { ...baseBrief, module: "research", platforms: [] };
 const insight = {
   eventType: "research_insight",
+  module: "research",
+  artifact: "audience_analysis",
   summary: "Key audience insight: international students struggle most with document preparation and understanding admission timelines for North American universities.",
   payload: {
     summary: "International students struggle most with document preparation and understanding admission timelines for North American universities.",

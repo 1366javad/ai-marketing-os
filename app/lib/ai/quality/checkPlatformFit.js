@@ -30,7 +30,7 @@ function checkPlatformFit(agentOutput, eventType, platforms) {
   const warnings = [];
 
   // Only ad_copy and email_draft have platform-specific text limits in v1
-  if (!["ad_copy", "email_draft"].includes(eventType) || !platforms || platforms.length === 0) {
+  if (!["ads+ad_copy", "content+email_draft"].includes(eventType) || !platforms || platforms.length === 0) {
     return { passed: true, warnings: [] };
   }
 
@@ -55,7 +55,7 @@ function checkPlatformFit(agentOutput, eventType, platforms) {
     }
   }
 
-  const warningOnly = eventType === "email_draft";
+  const warningOnly = eventType === "content+email_draft";
 
   return { passed: warningOnly || warnings.length === 0, warnings };
 }

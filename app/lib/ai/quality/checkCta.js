@@ -19,8 +19,8 @@ const CTA_DETECTION_PATTERNS = [
   /\bclick here\b/i, /\bapply now\b/i, /\bsubscribe\b/i,
 ];
 
-const CTA_REQUIRED_TYPES = new Set(["ad_copy", "email_draft"]);
-const CTA_RECOMMENDED_TYPES = new Set(["blog_draft", "creative_concept"]);
+const CTA_REQUIRED_TYPES = new Set(["ads+ad_copy", "content+email_draft"]);
+const CTA_RECOMMENDED_TYPES = new Set(["content+blog_draft", "creative+creative_concept"]);
 
 /**
  * @param {Object} agentOutput

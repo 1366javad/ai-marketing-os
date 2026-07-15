@@ -142,18 +142,20 @@ Matrix; SEO itself only depends on Research, which Sprint A completes.
 ### Sprint C — Finish Content (complete the 🟡 → 🟢 transition)
 
 **Why here, not earlier:** Content's canonical agent already exists, but
-its most meaningful Shared-Intelligence behavior (reading
-`research_insight` **and** `keyword_idea` together, per
+its most meaningful Shared-Intelligence behavior (reading an approved
+Research artifact **and** an approved SEO artifact together, per
 `context-slicing-examples.md`) is only fully demonstrable once SEO
-(Sprint B) is producing real `keyword_cluster`/`keyword_idea` events.
+(Sprint B) is producing real `seo + keyword_cluster` events.
 
 - Follow `migration-map.md` checklist to finish the route migration.
 - **Exit criteria:**
   - Same as Sprint A structure, applied to Content.
   - Smoke test explicitly reproduces the worked example in
     `context-slicing-examples.md` ("Content" section): a Content call
-    returns both a `research_insight` and a `keyword_idea` in
-    `relevantEvents`.
+    returns both an approved canonical Research identity (for example,
+    `research + audience_analysis`) and `seo + keyword_cluster` in
+    `relevantEvents`. Exit Criteria are evaluated by `module + artifact`,
+    never by the legacy `type` compatibility field.
 
 ### Sprint D — Creative (net-new canonical agent, image pipeline included)
 
@@ -184,8 +186,8 @@ Matrix, so it should follow Content's completion.
 ### Sprint E — Ads (net-new canonical agent)
 
 **Why here:** Ads is the last in the current Matrix's linear chain — it
-reads `keyword_idea` and approved `creative_concept`/`image_asset`, not raw
-`blog_draft` (a deliberately resolved edge case, see
+reads approved `seo + seo_strategy` and `creative + creative_concept`/
+`creative + image_asset`, not raw `content + blog_draft` (a deliberately resolved edge case, see
 `context-slicing-examples.md`, "Ads" section — do not "fix" this during
 implementation without updating the Matrix first).
 

@@ -1,5 +1,5 @@
 function checkResearchDepth(agentOutput, eventType) {
-  if (eventType !== "research_insight") {
+  if (!eventType.startsWith("research+")) {
     return { passed: true, missing: [] };
   }
 

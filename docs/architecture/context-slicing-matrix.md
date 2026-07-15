@@ -100,7 +100,7 @@ context. Pending, failed, rejected, and superseded artifacts are not visible.
 
 ## Cross-Module Rule
 
-Type filter (this matrix) and approval filter (Rule 3/4, campaign-memory-v1.md)
+Canonical `module + artifact` filter (this matrix) and approval filter (Rule 3/4, campaign-memory-v1.md)
 always apply together. This matrix defines WHICH artifacts a module may read.
 The approval filter defines WHICH of those are currently visible.
 Neither overrides the other.

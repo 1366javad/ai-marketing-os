@@ -223,6 +223,7 @@ for (const [artifact, expectedRisk] of Object.entries(seoRiskFloors)) {
   const risk = classifyOutputRisk(
     {
       eventType: "keyword_idea",
+      module: "seo",
       artifact,
       suggestedRiskLevel: null,
     },

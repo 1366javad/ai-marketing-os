@@ -16,55 +16,31 @@
  * to ensure there is ONE source of truth. Do NOT redefine the floor table here.
  */
 
-const { MODULE_PRIMARY_RISK_FLOOR } = require("../orchestrator/resolveRiskGate");
-
-// Event-type-level floor (more granular than module-level floor).
+// Canonical event-identity floor.
 // Source: adr-003-risk-classification.md Risk Floor Table.
-const EVENT_TYPE_RISK_FLOOR = Object.freeze({
-  research_insight:   "low",
-  keyword_idea:       "low",
-  blog_draft:         "medium",
-  email_draft:        "medium",
-  creative_concept:   "medium",
-  image_asset:        "medium",
-  ad_copy:            "high",
-  video_script:       "medium",
-  storyboard:         "medium",
-  campaign_learning:  "low",
-  retroactive_attach: "medium",
-  context_change:     "medium",
-});
-
 const ARTIFACT_RISK_FLOOR = Object.freeze({
-  market_research: "low",
-  audience_analysis: "low",
-  competitor_analysis: "low",
-  trends_research: "low",
-  pain_points_research: "low",
-  opportunities_research: "low",
-  keyword_research: "low",
-  keyword_cluster: "low",
-  topic_cluster: "medium",
-  seo_strategy: "high",
-  meta_description: "medium",
-  faq_generation: "medium",
-  blog_draft: "medium",
-  email_draft: "medium",
-  blog_post: "medium",
-  email: "medium",
-  newsletter: "medium",
-  landing_page: "medium",
-  case_study: "medium",
-  linkedin_post: "medium",
-  instagram_caption: "medium",
-  creative_concept: "medium",
-  image_asset: "medium",
-  ad_copy: "high",
-  campaign_learning: "low",
-  retroactive_attach: "medium",
-  context_change: "medium",
-  video_script: "medium",
-  storyboard: "medium",
+  "research+market_research": "low",
+  "research+audience_analysis": "low",
+  "research+competitor_analysis": "low",
+  "research+trends_research": "low",
+  "research+pain_points_research": "low",
+  "research+opportunities_research": "low",
+  "seo+keyword_research": "low",
+  "seo+keyword_cluster": "low",
+  "seo+topic_cluster": "medium",
+  "seo+seo_strategy": "high",
+  "seo+meta_description": "medium",
+  "seo+faq_generation": "medium",
+  "content+blog_draft": "medium",
+  "content+email_draft": "medium",
+  "creative+creative_concept": "medium",
+  "creative+image_asset": "medium",
+  "ads+ad_copy": "high",
+  "analytics+campaign_learning": "low",
+  "special+retroactive_attach": "medium",
+  "special+context_change": "medium",
+  "video+video_script": "medium",
+  "video+storyboard": "medium",
 });
 
 const RISK_ORDER = Object.freeze({ low: 0, medium: 1, high: 2 });
@@ -84,36 +60,20 @@ const RISK_ORDER = Object.freeze({ low: 0, medium: 1, high: 2 });
  * @throws {Error} if eventType has no defined floor — fail loudly (ADR-003 requirement)
  */
 function classifyOutputRisk(agentOutput, executionPlan) {
-  const eventType = agentOutput?.eventType;
-  const artifact = agentOutput?.artifact;
+  const identity = `${agentOutput?.module || ""}+${agentOutput?.artifact || ""}`;
   const suggestedRisk = agentOutput?.suggestedRiskLevel;
-  const requestedModule = executionPlan?.module;
+  const identityFloor = ARTIFACT_RISK_FLOOR[identity];
 
-  const eventTypeFloor =
-    ARTIFACT_RISK_FLOOR[artifact] || EVENT_TYPE_RISK_FLOOR[eventType];
-
-  if (!eventTypeFloor) {
+  if (!identityFloor) {
     throw new Error(
-      `classifyOutputRisk: no risk floor defined for artifact "${artifact}" / event type "${eventType}". ` +
+      `classifyOutputRisk: no risk floor defined for canonical identity "${identity}". ` +
         `Add it to adr-003-risk-classification.md and ARTIFACT_RISK_FLOOR before use. ` +
         `Refusing to default to "low" — that would silently under-classify output.`
     );
   }
 
-  // Module-level floor as a secondary check (catches mismatch between
-  // what module we routed to and what event type the agent claims to produce)
-  const moduleFloor = requestedModule
-    ? MODULE_PRIMARY_RISK_FLOOR[requestedModule]
-    : null;
-
-  // Final floor = max(eventTypeFloor, moduleFloor)
-  let floor = eventTypeFloor;
-  let floorSource = "event_type";
-
-  if (moduleFloor && RISK_ORDER[moduleFloor] > RISK_ORDER[floor]) {
-    floor = moduleFloor;
-    floorSource = "module";
-  }
+  const floor = identityFloor;
+  let floorSource = "module_artifact";
 
   // Agent suggestion can only raise risk, never lower it below floor
   let finalRisk = floor;
@@ -133,6 +93,5 @@ function classifyOutputRisk(agentOutput, executionPlan) {
 module.exports = {
   classifyOutputRisk,
   ARTIFACT_RISK_FLOOR,
-  EVENT_TYPE_RISK_FLOOR,
   RISK_ORDER,
 };

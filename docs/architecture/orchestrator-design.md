@@ -79,24 +79,26 @@ Risk is determined in two layers, not trusted blindly from the agent:
 ```
 function classifyRisk(agentOutput):
   baseRisk = agentOutput.suggestedRiskLevel   // agent's own guess, e.g. "content_draft" → medium
-  finalRisk = enforceMinimumRisk(agentOutput.type, baseRisk)
+  finalRisk = enforceMinimumRisk(agentOutput.module, agentOutput.artifact, baseRisk)
   return finalRisk
 ```
 
-- Each **Agent** proposes a `suggestedRiskLevel` based on what it produced (it knows its own output type best — e.g. SEO Agent knows a keyword list is low-risk, Ads Agent knows a published ad is high-risk).
-- The **Orchestrator** holds a hard-coded minimum-risk floor per event `type` (see table below) and never allows an agent to self-report *below* that floor. An agent can over-classify its own output as riskier than the floor, never under-classify it.
+- Each **Agent** proposes a `suggestedRiskLevel` based on what it produced.
+- The **Orchestrator** holds a hard-coded minimum-risk floor per canonical
+  `module + artifact` identity and never allows an agent to self-report below
+  that floor.
 
-| Event Type | Minimum Risk Floor |
+| Canonical module + artifact | Minimum Risk Floor |
 | --- | --- |
-| `research_insight`, `keyword_idea` | low (legacy event-type aliases) |
-| `keyword_research`, `keyword_cluster` | low |
-| `topic_cluster` | medium |
-| `seo_strategy` | high |
-| `meta_description`, `faq_generation` | medium |
-| `content_draft`, `email_draft`, `blog_draft`, `creative_concept` | medium |
-| `image_asset` | medium |
-| `ad_copy` | high |
-| `retroactive_attach` | medium (regardless of original content — see Rule 6, campaign-memory-v1.md) |
+| `research + market_research/audience_analysis/competitor_analysis/trends_research/pain_points_research/opportunities_research` | low |
+| `seo + keyword_research/keyword_cluster` | low |
+| `seo + topic_cluster` | medium |
+| `seo + seo_strategy` | high |
+| `seo + meta_description/faq_generation` | medium |
+| `content + email_draft/blog_draft` | medium |
+| `creative + creative_concept/image_asset` | medium |
+| `ads + ad_copy` | high |
+| `special + retroactive_attach` | medium (regardless of original content — see Rule 6, campaign-memory-v1.md) |
 | any action that spends budget or publishes externally | high |
 
 This floor table lives in the Orchestrator, not in individual agents — so risk policy can be changed in one place without touching every agent's code.
@@ -123,13 +125,13 @@ In `TOOL_MODE`, this call is skipped entirely. The agent receives only the Brief
 
 Only the Orchestrator writes to Campaign Memory, and only after Risk Gate classification. The write always includes:
 
-- `type` (from the agent's output)
+- `module + artifact` (from the agent's output; canonical identity)
 - `approvalStatus` (`auto_saved` for low risk, `pending` for medium/high — see Section 2)
 - `riskLevel` (the Orchestrator's enforced final value, not the agent's raw suggestion)
 - `module`, `task`, `summary`, `payload`
 - `supersedes` — populated only if this output is explicitly replacing a prior event (e.g. user regenerates a draft); otherwise `null`
 
-In `TOOL_MODE`, no Memory Event is written at generation time. A write only happens if/when the user explicitly chooses "Save to Campaign" after the fact, at which point the event is created with `type: "retroactive_attach"` (per Rule 6).
+In `TOOL_MODE`, no Memory Event is written at generation time. A write only happens if/when the user explicitly chooses "Save to Campaign" after the fact, at which point the event is created with `module: "special"` and `artifact: "retroactive_attach"` (per Rule 6).
 
 ---
 

@@ -19,27 +19,25 @@ function expect(name, condition) {
   console.error(`FAIL ${name}`);
 }
 
-const legacyResearch = canonicalizeMemoryEvent({
-  type: "research_insight",
-  task: "audience",
-});
+const legacyResearch = canonicalizeMemoryEvent({ type: "research_insight" });
 expect(
-  "legacy research resolves module",
-  legacyResearch.module === "research",
+  "legacy type does not resolve module",
+  legacyResearch.module === "",
 );
 expect(
-  "legacy research resolves artifact",
-  legacyResearch.artifact === "audience_analysis",
+  "legacy type does not resolve artifact",
+  legacyResearch.artifact === "",
 );
 
-const legacySeo = canonicalizeMemoryEvent({
+const canonicalSeo = canonicalizeMemoryEvent({
+  module: "seo",
+  artifact: "keyword_cluster",
   type: "keyword_idea",
-  task: "keyword_clusters",
 });
-expect("legacy SEO resolves module", legacySeo.module === "seo");
+expect("canonical SEO resolves module", canonicalSeo.module === "seo");
 expect(
-  "legacy SEO resolves artifact",
-  legacySeo.artifact === "keyword_cluster",
+  "canonical SEO resolves artifact",
+  canonicalSeo.artifact === "keyword_cluster",
 );
 
 const canonical = canonicalizeMemoryEvent({
@@ -51,14 +49,8 @@ expect("canonical module wins", canonical.module === "seo");
 expect("canonical artifact wins", canonical.artifact === "seo_strategy");
 expect("legacy type mirrors artifact", canonical.type === "seo_strategy");
 
-expect(
-  "special legacy event resolves module",
-  resolveMemoryModule({ type: "context_change" }) === "special",
-);
-expect(
-  "special legacy event resolves artifact",
-  resolveMemoryArtifact({ type: "context_change" }) === "context_change",
-);
+expect("type cannot override module", resolveMemoryModule({ type: "context_change" }) === "");
+expect("type cannot override artifact", resolveMemoryArtifact({ type: "context_change" }) === "");
 
 expect(
   "selector requires module and artifact",

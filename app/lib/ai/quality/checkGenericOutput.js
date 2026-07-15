@@ -23,18 +23,16 @@ const PLACEHOLDER_PATTERNS = [
 
 // Minimum meaningful character count per event type for the primary text field.
 const MIN_LENGTH_BY_EVENT_TYPE = Object.freeze({
-  research_insight:  80,
-  keyword_idea:      20,
-  blog_draft:       300,
-  email_draft:      150,
-  creative_concept: 100,
-  image_asset:       50,
-  ad_copy:           60,
-  video_script:     150,
-  storyboard:       120,
-  campaign_learning: 80,
-  retroactive_attach:20,
-  context_change:    10,
+  "content+blog_draft": 300,
+  "content+email_draft": 150,
+  "creative+creative_concept": 100,
+  "creative+image_asset": 50,
+  "ads+ad_copy": 60,
+  "video+video_script": 150,
+  "video+storyboard": 120,
+  "analytics+campaign_learning": 80,
+  "special+retroactive_attach": 20,
+  "special+context_change": 10,
 });
 
 /**
@@ -71,25 +69,29 @@ function extractPrimaryText(agentOutput, eventType) {
   if (!p) return "";
   // Primary text field per event type
   const map = {
-    blog_draft: p.body,
-    email_draft: p.body,
-    ad_copy: [p.headline, p.body].filter(Boolean).join(" "),
-    video_script: [
+    "content+blog_draft": p.body,
+    "content+email_draft": p.body,
+    "ads+ad_copy": [p.headline, p.body].filter(Boolean).join(" "),
+    "video+video_script": [
       p.hook,
       ...(Array.isArray(p.scenes) ? p.scenes : []),
       p.cta,
     ].filter(Boolean).join(" "),
-    storyboard: Array.isArray(p.scenes) ? p.scenes.join(" ") : "",
-    creative_concept: p.concept,
-    image_asset: p.imagePrompt,
-    research_insight: [
+    "video+storyboard": Array.isArray(p.scenes) ? p.scenes.join(" ") : "",
+    "creative+creative_concept": p.concept,
+    "creative+image_asset": p.imagePrompt,
+    "analytics+campaign_learning": p.insight,
+  };
+  if (eventType.startsWith("research+")) {
+    return [
       p.summary,
       ...(Array.isArray(p.insights) ? p.insights : []),
       ...(Array.isArray(p.recommendations) ? p.recommendations : []),
-    ].filter(Boolean).join(" "),
-    keyword_idea: Array.isArray(p.keywords) ? p.keywords.join(", ") : String(p.keywords || ""),
-    campaign_learning: p.insight,
-  };
+    ].filter(Boolean).join(" ");
+  }
+  if (eventType.startsWith("seo+")) {
+    return Array.isArray(p.keywords) ? p.keywords.join(", ") : String(p.keywords || "");
+  }
   return map[eventType] || JSON.stringify(p);
 }
 

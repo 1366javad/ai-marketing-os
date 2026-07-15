@@ -34,17 +34,17 @@ function runQualityChecks(agentOutput, executionPlan, brief) {
     throw new Error("runQualityChecks: agentOutput, executionPlan, and brief are all required.");
   }
 
-  const eventType = agentOutput.eventType;
+  const eventIdentity = `${agentOutput.module}+${agentOutput.artifact}`;
 
-  const requiredFields  = checkRequiredFields(agentOutput, eventType);
-  const researchDepth   = checkResearchDepth(agentOutput, eventType);
+  const requiredFields  = checkRequiredFields(agentOutput, eventIdentity);
+  const researchDepth   = checkResearchDepth(agentOutput, eventIdentity);
   const requiredResult  = {
     passed: requiredFields.passed && researchDepth.passed,
     missing: [...requiredFields.missing, ...researchDepth.missing],
   };
-  const genericOutput   = checkGenericOutput(agentOutput, eventType);
-  const platformFit     = checkPlatformFit(agentOutput, eventType, brief.platforms);
-  const cta             = checkCta(agentOutput, eventType);
+  const genericOutput   = checkGenericOutput(agentOutput, eventIdentity);
+  const platformFit     = checkPlatformFit(agentOutput, eventIdentity, brief.platforms);
+  const cta             = checkCta(agentOutput, eventIdentity);
   const riskResult      = classifyOutputRisk(agentOutput, executionPlan);
 
   return normalizeQualityResult({
