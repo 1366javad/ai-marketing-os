@@ -3,7 +3,7 @@
  *
  * Pure composition. Takes the outputs of detectMode, resolveModule, resolveTask,
  * and resolveRiskGate and assembles the single ExecutionPlan object that gets
- * handed to the caller (index.js), which is then responsible for actually:
+ * handed to executeCanonicalPipeline(), which is then responsible for:
  *   - calling getCampaignContextSlice() if needsContext is true
  *   - invoking the right agent
  *   - running Quality Layer

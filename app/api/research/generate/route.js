@@ -2,19 +2,13 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCampaignById } from "@/app/lib/db/campaigns";
 import { createCampaignOutput } from "@/app/lib/db/campaignOutputs";
 import { validateInput } from "@/app/lib/ai/input-guard";
-import { runOrchestrator } from "@/app/lib/ai/orchestrator";
-import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
-import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
-import { createSupabaseMemoryWriter, toSupabaseMemoryRow } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
-import { writeMemoryEvent } from "@/app/lib/ai/campaign/events/writeMemoryEvent";
-import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
-  formatResearchMarkdown,
-  runResearchAgent,
-  repairResearchOutput,
-  toResearchMemoryEvent,
-} from "@/app/lib/ai/agents/research";
-import { runQualityChecks } from "@/app/lib/ai/quality";
+  executeCanonicalPipeline,
+  runOrchestrator,
+} from "@/app/lib/ai/orchestrator";
+import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
+import { formatResearchMarkdown } from "@/app/lib/ai/agents/research";
 import {
   getAiErrorMessage,
   getAiErrorStatus,
@@ -198,137 +192,34 @@ export async function POST(request) {
       throw error;
     }
 
-    log("STEP 6 Context Builder started.");
-    let contextSlice = null;
-    if (executionPlan.needsContext) {
-      try {
-        contextSlice = await getCampaignContextSlice(
-          executionPlan.campaignId,
-          executionPlan.module,
-          executionPlan.task,
-          {
-            includePending: false,
-            contextDbAdapter: createContextDbAdapter(campaign),
-            eventsDbAdapter: createSupabaseEventsAdapter(supabase),
-          },
-        );
-      } catch (error) {
-        logError("STEP 7 Context Builder failed.", error);
-        throw error;
-      }
-    }
-    log("STEP 7 Context Builder finished.");
-
-    log("STEP 8 Brief Builder started.");
-    let brief;
-    try {
-      brief = {
-        ...buildBrief(guard.normalizedPrompt, executionPlan, contextSlice),
-        requestedModule: "research",
-        normalizedTask,
-        normalizedPrompt: guard.normalizedPrompt,
-        relevantEvents: contextSlice?.relevantEvents || [],
-      };
-      log("STEP 9 Brief Builder finished.");
-    } catch (error) {
-      logError("STEP 9 Brief Builder failed.", error);
-      throw error;
-    }
-
-    log("STEP 10 Provider selected.", {
-      providerName:
-        process.env.AI_PROVIDER || process.env.TEXT_PROVIDER || "unknown",
-      modelName:
-        process.env.AI_MODEL ||
-        process.env.OPENAI_MODEL ||
-        process.env.GROQ_MODEL ||
-        "unknown",
+    log("STEP 6 Canonical pipeline started.");
+    const pipeline = await executeCanonicalPipeline({
+      normalizedPrompt: guard.normalizedPrompt,
+      executionPlan,
+      contextOptions: {
+        contextDbAdapter: createContextDbAdapter(campaign),
+        eventsDbAdapter: createSupabaseEventsAdapter(supabase),
+      },
+      memoryOptions: createResearchMemoryOptions({
+        supabase,
+        user,
+        campaign,
+        prompt: guard.normalizedPrompt,
+      }),
     });
-    log("STEP 11 Provider request started.");
-    const providerStartedAt = Date.now();
-    let researchOutput;
-    try {
-      researchOutput = await runResearchAgent({
-        brief,
-        executionPlan,
-      });
-      log("STEP 12 Provider request finished.", {
-        responseLength: JSON.stringify(researchOutput || {}).length,
-        providerLatency: Date.now() - providerStartedAt,
-        providerName: researchOutput?.metadata?.provider || "unknown",
-        modelName: researchOutput?.metadata?.model || "unknown",
-      });
-    } catch (error) {
-      logError("STEP 12 Provider request failed.", error);
-      throw error;
-    }
-
-    log("STEP 13 Normalizer started.");
-    let memoryEvent;
-    try {
-      memoryEvent = toResearchMemoryEvent(researchOutput, {
-        brief,
-        executionPlan,
-      });
-      log("STEP 14 Normalizer finished.");
-    } catch (error) {
-      logError("STEP 14 Normalizer failed.", error);
-      throw error;
-    }
-
-    log("STEP 15 Quality Layer started.");
-    let quality;
-    try {
-      quality = runQualityChecks(memoryEvent, executionPlan, brief);
-      log("STEP 16 Quality Layer finished.");
-    } catch (error) {
-      logError("STEP 16 Quality Layer failed.", error);
-      throw error;
-    }
-
-    if (!quality.passed) {
-      console.warn("Research quality repair started:", {
-        provider: researchOutput.metadata?.provider,
-        issues: quality.issues,
-        counts: summarizeResearchCounts(researchOutput),
-      });
-      try {
-        researchOutput = await repairResearchOutput({
-          brief,
-          executionPlan,
-          previousOutput: researchOutput,
-          issues: quality.issues,
-        });
-      } catch (error) {
-        logError("Research quality repair failed during provider call.", error);
-        throw error;
-      }
-      log("STEP 13 Normalizer started.", { phase: "repair" });
-      try {
-        memoryEvent = toResearchMemoryEvent(researchOutput, {
-          brief,
-          executionPlan,
-        });
-        log("STEP 14 Normalizer finished.", { phase: "repair" });
-      } catch (error) {
-        logError("STEP 14 Normalizer failed.", error);
-        throw error;
-      }
-      log("STEP 15 Quality Layer started.", { phase: "repair" });
-      try {
-        quality = runQualityChecks(memoryEvent, executionPlan, brief);
-        log("STEP 16 Quality Layer finished.", { phase: "repair" });
-      } catch (error) {
-        logError("STEP 16 Quality Layer failed.", error);
-        throw error;
-      }
-      console.log("Research quality repair result:", {
-        provider: researchOutput.metadata?.provider,
-        passed: quality.passed,
-        issues: quality.issues,
-        counts: summarizeResearchCounts(researchOutput),
-      });
-    }
+    const {
+      agentOutput: researchOutput,
+      memoryEvent,
+      quality,
+      contextSlice,
+      memoryWrite,
+    } = pipeline;
+    log("STEP 18 Canonical pipeline finished.", {
+      providerName: researchOutput?.metadata?.provider || "unknown",
+      modelName: researchOutput?.metadata?.model || "unknown",
+      qualityPassed: quality.passed,
+      memorySaved: Boolean(memoryWrite?.memory?.saved),
+    });
 
     if (!quality.passed) {
       console.error("Research quality repair failed:", {
@@ -362,27 +253,6 @@ export async function POST(request) {
     }
 
     const markdown = formatResearchMarkdown(researchOutput);
-    log("STEP 17 Memory write started.");
-    let memoryWrite;
-    try {
-      memoryWrite = await safeWriteResearchMemory({
-        supabase,
-        user,
-        campaign,
-        prompt: guard.normalizedPrompt,
-        markdown,
-        researchOutput,
-        memoryEvent,
-        executionPlan,
-        quality,
-        log,
-        logError,
-      });
-      log("STEP 18 Memory write finished.");
-    } catch (error) {
-      logError("STEP 18 Memory write failed.", error);
-      throw error;
-    }
 
     try {
       await completeUsageEvent({
@@ -516,99 +386,59 @@ function createContextDbAdapter(campaign) {
   };
 }
 
-async function safeWriteResearchMemory({
+function createResearchMemoryOptions({
   supabase,
   user,
   campaign,
   prompt,
-  markdown,
-  researchOutput,
-  memoryEvent,
-  executionPlan,
-  quality,
-  log,
-  logError,
 }) {
-  if (executionPlan.mode !== "campaign" || !campaign) {
-    const generatedAt = new Date().toISOString();
-
-    return {
-      output: {
-        type: executionPlan.task,
-        title: researchOutput.title,
-        prompt,
-        content: markdown,
-        metadata: {
-          ...researchOutput.metadata,
-          generatedAt,
-        },
-      },
-      memory: { skipped: true, reason: "tool_mode" },
-    };
-  }
-
-  const generatedAt = new Date().toISOString();
-  const canonicalEvent = {
-    campaignId: campaign.id,
-    module: memoryEvent.module,
-    artifact: memoryEvent.artifact,
-    approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
-    confidence: quality.score,
-    riskLevel: quality.riskLevel,
-    task: executionPlan.task,
-    summary: memoryEvent.summary,
-    payload: {
-      ...memoryEvent.payload,
-      generatedAt,
+  const formatOutput = (agentOutput, task) => ({
+    type: task,
+    title: agentOutput.title,
+    prompt,
+    content: formatResearchMarkdown(agentOutput),
+    metadata: {
+      ...agentOutput.metadata,
+      generatedAt: new Date().toISOString(),
     },
-    supersedes: null,
+  });
+
+  return {
     createdBy: user.id,
-  };
-  const eventRow = toSupabaseMemoryRow(canonicalEvent);
-
-  try {
-    const data = await writeMemoryEvent(canonicalEvent, {
-      dbAdapter: createSupabaseMemoryWriter(supabase),
-    });
-
-    return {
-      output: {
-        type: executionPlan.task,
-        title: researchOutput.title,
-        prompt,
-        content: markdown,
-        metadata: {
-          ...researchOutput.metadata,
-          generatedAt,
-        },
-      },
-      memory: { saved: true, storage: "campaign_memory_events", event: data },
-    };
-  } catch (insertError) {
-    logError?.("Campaign memory event insert threw.", insertError);
+    dbAdapter: createSupabaseMemoryWriter(supabase),
+    onToolMode: ({ agentOutput, memoryEvent }) => ({
+      output: formatOutput(agentOutput, memoryEvent.artifact),
+      memory: { skipped: true, reason: "tool_mode" },
+    }),
+    onWriteSuccess: ({ agentOutput, canonicalEvent }) =>
+      formatOutput(agentOutput, canonicalEvent.task),
+    onWriteFailure: async ({
+      error: insertError,
+      canonicalEvent,
+      agentOutput,
+      quality,
+    }) => {
     console.warn("Research memory write failed; falling back to campaign_outputs:", {
       message: insertError.message,
       code: insertError.code,
     });
 
     try {
-      log?.("Campaign output fallback write started.");
       const output = await createCampaignOutput({
         campaignId: campaign.id,
         module: "research",
-        type: executionPlan.task,
-        title: researchOutput.title,
+        type: canonicalEvent.task,
+        title: agentOutput.title,
         prompt,
-        content: markdown,
+        content: formatResearchMarkdown(agentOutput),
         metadata: {
           canonical: true,
           quality,
-          memoryEvent: eventRow,
-          ...researchOutput.metadata,
-          generatedAt,
+          memoryEvent: canonicalEvent,
+          ...agentOutput.metadata,
+          generatedAt: new Date().toISOString(),
         },
       });
-      log?.("Campaign output fallback write finished.");
 
       return {
         output,
@@ -620,20 +450,10 @@ async function safeWriteResearchMemory({
         },
       };
     } catch (fallbackError) {
-      logError?.("Campaign output fallback write failed.", fallbackError);
       console.warn("Research fallback write failed:", fallbackError);
 
       return {
-        output: {
-          type: executionPlan.task,
-          title: researchOutput.title,
-          prompt,
-          content: markdown,
-          metadata: {
-            ...researchOutput.metadata,
-            generatedAt,
-          },
-        },
+        output: formatOutput(agentOutput, canonicalEvent.task),
         memory: {
           saved: false,
           fallbackSaved: false,
@@ -642,5 +462,6 @@ async function safeWriteResearchMemory({
         },
       };
     }
-  }
+    },
+  };
 }

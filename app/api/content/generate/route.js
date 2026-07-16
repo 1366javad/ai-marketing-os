@@ -2,17 +2,12 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCampaignById } from "@/app/lib/db/campaigns";
 import { createCampaignOutput } from "@/app/lib/db/campaignOutputs";
 import { validateInput } from "@/app/lib/ai/input-guard";
-import { runOrchestrator } from "@/app/lib/ai/orchestrator";
-import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
-import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
-import { createSupabaseMemoryWriter, toSupabaseMemoryRow } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
-import { writeMemoryEvent } from "@/app/lib/ai/campaign/events/writeMemoryEvent";
-import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
-  runContentAgent,
-  toContentMemoryEvent,
-} from "@/app/lib/ai/agents/content";
-import { runQualityChecks } from "@/app/lib/ai/quality";
+  executeCanonicalPipeline,
+  runOrchestrator,
+} from "@/app/lib/ai/orchestrator";
+import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
 import {
   getAiErrorMessage,
   getAiErrorStatus,
@@ -109,36 +104,28 @@ export async function POST(request) {
       },
     });
 
-    const contextSlice = executionPlan.needsContext
-      ? await getCampaignContextSlice(
-          executionPlan.campaignId,
-          executionPlan.module,
-          executionPlan.task,
-          {
-            includePending: false,
-            contextDbAdapter: createContextDbAdapter(campaign),
-            eventsDbAdapter: createSupabaseEventsAdapter(supabase),
-          },
-        )
-      : null;
-
-    const brief = {
-      ...buildBrief(guard.normalizedPrompt, executionPlan, contextSlice),
-      requestedModule: "content",
-      normalizedTask,
-      normalizedPrompt: userDirection,
-      relevantEvents: contextSlice?.relevantEvents || [],
-    };
-
-    const contentOutput = await runContentAgent({
-      brief,
+    const pipeline = await executeCanonicalPipeline({
+      normalizedPrompt: guard.normalizedPrompt,
       executionPlan,
+      contextOptions: {
+        contextDbAdapter: createContextDbAdapter(campaign),
+        eventsDbAdapter: createSupabaseEventsAdapter(supabase),
+      },
+      briefExtensions: { normalizedPrompt: userDirection },
+      memoryOptions: createContentMemoryOptions({
+        supabase,
+        user,
+        campaign,
+        prompt: userDirection,
+      }),
     });
-    const memoryEvent = toContentMemoryEvent(contentOutput, {
-      brief,
-      executionPlan,
-    });
-    const quality = runQualityChecks(memoryEvent, executionPlan, brief);
+    const {
+      agentOutput: contentOutput,
+      memoryEvent,
+      quality,
+      contextSlice,
+      memoryWrite,
+    } = pipeline;
 
     if (!quality.passed) {
       await failUsageEvent({
@@ -157,17 +144,6 @@ export async function POST(request) {
         { status: 422 },
       );
     }
-
-    const memoryWrite = await safeWriteContentMemory({
-      supabase,
-      user,
-      campaign,
-      prompt: userDirection,
-      contentOutput,
-      memoryEvent,
-      executionPlan,
-      quality,
-    });
 
     await completeUsageEvent({
       supabase,
@@ -279,48 +255,20 @@ function createContextDbAdapter(campaign) {
   };
 }
 
-async function safeWriteContentMemory({
+function createContentMemoryOptions({
   supabase,
   user,
   campaign,
   prompt,
-  contentOutput,
-  memoryEvent,
-  executionPlan,
-  quality,
 }) {
-  if (executionPlan.mode !== "campaign" || !campaign) {
-    return {
-      output: contentOutput,
-      memory: { skipped: true, reason: "tool_mode" },
-    };
-  }
-
-  const approvalStatus = quality.approvalRequired ? "pending" : "auto_saved";
-  const canonicalEvent = {
-    campaignId: campaign.id,
-    module: memoryEvent.module,
-    artifact: memoryEvent.artifact,
-    approvalStatus,
-    confidence: quality.score,
-    riskLevel: quality.riskLevel,
-    task: executionPlan.task,
-    summary: memoryEvent.summary,
-    payload: memoryEvent.payload,
-    supersedes: null,
+  return {
     createdBy: user.id,
-  };
-  const eventRow = toSupabaseMemoryRow(canonicalEvent);
-
-  try {
-    const data = await writeMemoryEvent(canonicalEvent, {
-      dbAdapter: createSupabaseMemoryWriter(supabase),
-    });
-    return {
-      output: contentOutput,
-      memory: { saved: true, storage: "campaign_memory_events", event: data },
-    };
-  } catch (error) {
+    dbAdapter: createSupabaseMemoryWriter(supabase),
+    onToolMode: ({ agentOutput }) => ({
+      output: agentOutput,
+      memory: { skipped: true, reason: "tool_mode" },
+    }),
+    onWriteFailure: async ({ error, canonicalEvent, agentOutput, quality }) => {
     console.warn("Campaign Memory write failed; falling back to campaign_outputs:", {
       message: error.message,
       code: error.code,
@@ -330,16 +278,16 @@ async function safeWriteContentMemory({
       const output = await createCampaignOutput({
         campaignId: campaign.id,
         module: "content",
-        type: contentOutput.type,
-        title: contentOutput.title,
+        type: agentOutput.type,
+        title: agentOutput.title,
         prompt,
-        content: contentOutput.content,
+        content: agentOutput.content,
         metadata: {
-          cta: contentOutput.cta,
+          cta: agentOutput.cta,
           canonical: true,
           quality,
-          memoryEvent: eventRow,
-          ...contentOutput.metadata,
+          memoryEvent: canonicalEvent,
+          ...agentOutput.metadata,
         },
       });
 
@@ -356,7 +304,7 @@ async function safeWriteContentMemory({
       console.warn("Campaign Memory fallback write failed:", fallbackError);
 
       return {
-        output: contentOutput,
+        output: agentOutput,
         memory: {
           saved: false,
           fallbackSaved: false,
@@ -365,5 +313,6 @@ async function safeWriteContentMemory({
         },
       };
     }
-  }
+    },
+  };
 }

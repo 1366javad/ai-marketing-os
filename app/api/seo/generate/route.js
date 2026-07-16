@@ -2,18 +2,13 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCampaignById } from "@/app/lib/db/campaigns";
 import { createCampaignOutput } from "@/app/lib/db/campaignOutputs";
 import { validateInput } from "@/app/lib/ai/input-guard";
-import { runOrchestrator } from "@/app/lib/ai/orchestrator";
-import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
-import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
-import { createSupabaseMemoryWriter, toSupabaseMemoryRow } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
-import { writeMemoryEvent } from "@/app/lib/ai/campaign/events/writeMemoryEvent";
-import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
-  formatSeoMarkdown,
-  runSeoAgent,
-  toSeoMemoryEvent,
-} from "@/app/lib/ai/agents/seo";
-import { runQualityChecks } from "@/app/lib/ai/quality";
+  executeCanonicalPipeline,
+  runOrchestrator,
+} from "@/app/lib/ai/orchestrator";
+import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
+import { formatSeoMarkdown } from "@/app/lib/ai/agents/seo";
 import {
   getAiErrorMessage,
   getAiErrorStatus,
@@ -105,37 +100,27 @@ export async function POST(request) {
       },
     });
 
-    const contextSlice = executionPlan.needsContext
-      ? await getCampaignContextSlice(
-          executionPlan.campaignId,
-          executionPlan.module,
-          executionPlan.task,
-          {
-            includePending: false,
-            contextDbAdapter: createContextDbAdapter(campaign),
-            eventsDbAdapter: createSupabaseEventsAdapter(supabase),
-          },
-        )
-      : null;
-
-    const brief = {
-      ...buildBrief(guard.normalizedPrompt, executionPlan, contextSlice),
-      requestedModule: "seo",
-      normalizedTask,
+    const pipeline = await executeCanonicalPipeline({
       normalizedPrompt: guard.normalizedPrompt,
-      relevantEvents: contextSlice?.relevantEvents || [],
-      dependencyDiagnostics: contextSlice?.dependencyDiagnostics || null,
-    };
-
-    const seoOutput = await runSeoAgent({
-      brief,
       executionPlan,
+      contextOptions: {
+        contextDbAdapter: createContextDbAdapter(campaign),
+        eventsDbAdapter: createSupabaseEventsAdapter(supabase),
+      },
+      memoryOptions: createSeoMemoryOptions({
+        supabase,
+        user,
+        campaign,
+        prompt: guard.normalizedPrompt,
+      }),
     });
-    const memoryEvent = toSeoMemoryEvent(seoOutput, {
-      brief,
-      executionPlan,
-    });
-    const quality = runQualityChecks(memoryEvent, executionPlan, brief);
+    const {
+      agentOutput: seoOutput,
+      memoryEvent,
+      quality,
+      contextSlice,
+      memoryWrite,
+    } = pipeline;
 
     if (!quality.passed) {
       await failUsageEvent({
@@ -156,18 +141,6 @@ export async function POST(request) {
     }
 
     const markdown = formatSeoMarkdown(seoOutput);
-    const memoryWrite = await safeWriteSeoMemory({
-      supabase,
-      user,
-      campaign,
-      prompt: guard.normalizedPrompt,
-      markdown,
-      seoOutput,
-      memoryEvent,
-      executionPlan,
-      quality,
-    });
-
     await completeUsageEvent({
       supabase,
       usageId: usage?.id,
@@ -293,89 +266,59 @@ function createContextDbAdapter(campaign) {
   };
 }
 
-async function safeWriteSeoMemory({
+function createSeoMemoryOptions({
   supabase,
   user,
   campaign,
   prompt,
-  markdown,
-  seoOutput,
-  memoryEvent,
-  executionPlan,
-  quality,
 }) {
-  if (executionPlan.mode !== "campaign" || !campaign) {
-    const generatedAt = new Date().toISOString();
-
-    return {
-      output: {
-        type: executionPlan.task,
-        title: seoOutput.title,
-        prompt,
-        content: markdown,
-        metadata: {
-          ...seoOutput.metadata,
-          generatedAt,
-        },
-      },
-      memory: { skipped: true, reason: "tool_mode" },
-    };
-  }
-
-  const generatedAt = new Date().toISOString();
-  const canonicalEvent = {
-    campaignId: campaign.id,
-    module: memoryEvent.module,
-    artifact: memoryEvent.artifact,
-    approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
-    confidence: quality.score,
-    riskLevel: quality.riskLevel,
-    task: executionPlan.task,
-    summary: memoryEvent.summary,
-    payload: {
-      ...memoryEvent.payload,
-      generatedAt,
-    },
-    supersedes: null,
+  return {
     createdBy: user.id,
-  };
-  const eventRow = toSupabaseMemoryRow(canonicalEvent);
-
-  try {
-    const data = await writeMemoryEvent(canonicalEvent, {
-      dbAdapter: createSupabaseMemoryWriter(supabase),
-    });
-    return {
-      output: {
-        type: executionPlan.task,
-        title: seoOutput.title,
-        prompt,
-        content: markdown,
-        metadata: {
-          ...seoOutput.metadata,
-          generatedAt,
+    dbAdapter: createSupabaseMemoryWriter(supabase),
+    onToolMode: ({ agentOutput }) => {
+      const generatedAt = new Date().toISOString();
+      return {
+        output: {
+          type: agentOutput.type,
+          title: agentOutput.title,
+          prompt,
+          content: formatSeoMarkdown(agentOutput),
+          metadata: {
+            ...agentOutput.metadata,
+            generatedAt,
+          },
         },
+        memory: { skipped: true, reason: "tool_mode" },
+      };
+    },
+    onWriteSuccess: ({ agentOutput, canonicalEvent }) => ({
+      type: canonicalEvent.task,
+      title: agentOutput.title,
+      prompt,
+      content: formatSeoMarkdown(agentOutput),
+      metadata: {
+        ...agentOutput.metadata,
+        generatedAt: new Date().toISOString(),
       },
-      memory: { saved: true, storage: "campaign_memory_events", event: data },
-    };
-  } catch (error) {
+    }),
+    onWriteFailure: async ({ error, canonicalEvent, agentOutput, quality }) => {
     console.warn("SEO memory write failed; falling back to campaign_outputs:", {
       message: error.message,
       code: error.code,
     });
-
+    const generatedAt = new Date().toISOString();
     const output = await createCampaignOutput({
       campaignId: campaign.id,
       module: "seo",
-      type: executionPlan.task,
-      title: seoOutput.title,
+      type: canonicalEvent.task,
+      title: agentOutput.title,
       prompt,
-      content: markdown,
+      content: formatSeoMarkdown(agentOutput),
       metadata: {
         canonical: true,
         quality,
-        memoryEvent: eventRow,
-        ...seoOutput.metadata,
+        memoryEvent: canonicalEvent,
+        ...agentOutput.metadata,
         generatedAt,
       },
     });
@@ -389,5 +332,6 @@ async function safeWriteSeoMemory({
         error: error.message,
       },
     };
-  }
+    },
+  };
 }

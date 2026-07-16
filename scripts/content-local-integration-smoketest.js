@@ -3,12 +3,10 @@ require("dotenv").config({ path: ".env.local", quiet: true });
 const fs = require("node:fs");
 const path = require("node:path");
 const { validateInput } = require("../app/lib/ai/input-guard");
-const { runOrchestrator } = require("../app/lib/ai/orchestrator");
-const { getCampaignContextSlice } = require("../app/lib/ai/campaign/getCampaignContextSlice");
-const { buildBrief } = require("../app/lib/ai/brief-builder");
-const { runContentAgent, toContentMemoryEvent } = require("../app/lib/ai/agents/content");
-const { runQualityChecks } = require("../app/lib/ai/quality");
-const { writeMemoryEvent } = require("../app/lib/ai/campaign/events/writeMemoryEvent");
+const {
+  executeCanonicalPipeline,
+  runOrchestrator,
+} = require("../app/lib/ai/orchestrator");
 
 const campaignId = "local_sprint_c_campaign";
 const storedEvents = [
@@ -71,11 +69,19 @@ async function run() {
     task: executionPlan.task,
   });
 
-  const contextSlice = await getCampaignContextSlice(campaignId, "content", "blog_post", {
-    includePending: false,
-    contextDbAdapter: async () => context,
-    eventsDbAdapter: async () => storedEvents,
+  const pipeline = await executeCanonicalPipeline({
+    normalizedPrompt: guard.normalizedPrompt,
+    executionPlan,
+    contextOptions: {
+      contextDbAdapter: async () => context,
+      eventsDbAdapter: async () => storedEvents,
+    },
+    memoryOptions: {
+      createdBy: "local-integration-smoketest",
+      dbAdapter: async (value) => value,
+    },
   });
+  const { contextSlice, brief, agentOutput: contentOutput, memoryEvent, quality, memoryWrite } = pipeline;
   const identities = contextSlice.relevantEvents.map(({ module, artifact }) => `${module}+${artifact}`);
   verify(
     "Context Slice",
@@ -85,45 +91,20 @@ async function run() {
     { identities },
   );
 
-  const brief = {
-    ...buildBrief(guard.normalizedPrompt, executionPlan, contextSlice),
-    requestedModule: "content",
-    normalizedTask: "blog_post",
-    normalizedPrompt: guard.normalizedPrompt,
-    relevantEvents: contextSlice.relevantEvents,
-  };
   verify("Brief Builder", brief.relevantEvents.length === 2, {
     relevantEventCount: brief.relevantEvents.length,
   });
 
-  const contentOutput = await runContentAgent({ brief, executionPlan });
-  const memoryEvent = toContentMemoryEvent(contentOutput, { brief, executionPlan });
   verify("Content Agent", memoryEvent.module === "content" && memoryEvent.artifact === "blog_draft", {
     provider: contentOutput.metadata?.provider,
     model: contentOutput.metadata?.model,
   });
 
-  const quality = runQualityChecks(memoryEvent, executionPlan, brief);
   verify("Quality Layer", quality.passed && quality.riskLevel === "medium" && quality.approvalRequired, {
     score: quality.score,
   });
 
-  const written = await writeMemoryEvent(
-    {
-      campaignId,
-      module: memoryEvent.module,
-      artifact: memoryEvent.artifact,
-      approvalStatus: "pending",
-      confidence: quality.score,
-      riskLevel: quality.riskLevel,
-      task: executionPlan.task,
-      summary: memoryEvent.summary,
-      payload: memoryEvent.payload,
-      supersedes: null,
-      createdBy: "local-integration-smoketest",
-    },
-    { dbAdapter: async (value) => value },
-  );
+  const written = memoryWrite.memory.event;
   verify("Memory Write", written.module === "content" && written.artifact === "blog_draft");
 
   const canonicalFiles = [

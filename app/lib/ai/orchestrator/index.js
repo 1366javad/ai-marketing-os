@@ -1,22 +1,16 @@
 /**
  * index.js — Orchestrator entry point
  *
- * THIS FILE IS A COORDINATOR, NOT AN AGENT. Per the locked decision for this
- * sprint: the orchestrator's only job is to produce an ExecutionPlan. It does
- * NOT:
- *   ❌ build prompts
- *   ❌ call providers
- *   ❌ run quality checks
- *   ❌ filter memory (that's getCampaignContextSlice's job, called by the
- *      CALLER of this orchestrator, not from inside it)
- *   ❌ do final risk calculation (that happens after the agent produces
- *      output — see resolveRiskGate.js header comment)
+ * THIS FILE IS A COORDINATOR, NOT AN AGENT. It exposes the two phases of the
+ * frozen OrchestratorService contract:
+ *   1. runOrchestrator() creates the ExecutionPlan needed by route-level
+ *      credit and usage gates.
+ *   2. executeCanonicalPipeline() owns Context Slice, Brief Builder, Agent,
+ *      Quality/Risk Gate, and Memory Write.
  *
- * Pipeline this file implements (orchestrator-design.md, Section 2, the
- * "decision" portion only — Input Guard and Brief Builder run BEFORE this
- * is called, by the caller, not by this file):
+ * Planning phase:
  *
- *   brief (already validated + normalized by Input Guard + Brief Builder)
+ *   validated orchestration input
  *     ↓
  *   detectMode()        → tool | campaign
  *     ↓
@@ -28,9 +22,8 @@
  *     ↓
  *   buildExecutionPlan()    → the single output object
  *
- * The caller (not this file) is responsible for the steps AFTER the plan:
- * calling getCampaignContextSlice() if plan.needsContext, invoking
- * plan.agent, running Quality Layer, and writing memory.
+ * The API route remains responsible only for HTTP/auth, Input Guard,
+ * campaign lookup, credit/usage accounting, and response formatting.
  */
 
 const { detectMode } = require("./detectMode");
@@ -38,10 +31,10 @@ const { resolveModule } = require("./resolveModule");
 const { resolveTask } = require("./resolveTask");
 const { resolveRiskGate } = require("./resolveRiskGate");
 const { buildExecutionPlan } = require("./buildExecutionPlan");
+const { executeCanonicalPipeline } = require("./executeCanonicalPipeline");
 
 /**
- * @param {Object} brief - output of Marketing Input Guard + Brief Builder (steps 7-8).
- *   Until those modules exist, callers/tests may construct this shape directly.
+ * @param {Object} brief - validated orchestration input from the API route.
  * @param {string} [brief.campaignId]
  * @param {string} brief.requestedModule
  * @param {string} brief.normalizedTask
@@ -82,4 +75,4 @@ function runOrchestrator(brief, campaignLookup = null) {
   return { ...plan, fallbackReason };
 }
 
-module.exports = { runOrchestrator };
+module.exports = { runOrchestrator, executeCanonicalPipeline };
