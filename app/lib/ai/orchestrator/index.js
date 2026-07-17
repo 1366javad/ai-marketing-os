@@ -31,7 +31,10 @@ const { resolveModule } = require("./resolveModule");
 const { resolveTask } = require("./resolveTask");
 const { resolveRiskGate } = require("./resolveRiskGate");
 const { buildExecutionPlan } = require("./buildExecutionPlan");
-const { executeCanonicalPipeline } = require("./executeCanonicalPipeline");
+const {
+  executeCanonicalPipeline,
+  executeCreativeImageStage,
+} = require("./executeCanonicalPipeline");
 
 /**
  * @param {Object} brief - validated orchestration input from the API route.
@@ -75,4 +78,8 @@ function runOrchestrator(brief, campaignLookup = null) {
   return { ...plan, fallbackReason };
 }
 
-module.exports = { runOrchestrator, executeCanonicalPipeline };
+module.exports = {
+  runOrchestrator,
+  executeCanonicalPipeline,
+  executeCreativeImageStage,
+};

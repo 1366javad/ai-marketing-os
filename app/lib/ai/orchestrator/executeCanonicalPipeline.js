@@ -9,6 +9,12 @@ const {
 } = require("../agents/research");
 const { runSeoAgent, toSeoMemoryEvent } = require("../agents/seo");
 const { runContentAgent, toContentMemoryEvent } = require("../agents/content");
+const {
+  runCreativeTextPipeline,
+  runCreativeImagePipeline,
+  toCreativeMemoryEvent,
+  toImageAssetMemoryEvent,
+} = require("../agents/creative");
 
 const AGENT_DEFINITIONS = Object.freeze({
   research: Object.freeze({
@@ -23,6 +29,10 @@ const AGENT_DEFINITIONS = Object.freeze({
   content: Object.freeze({
     run: runContentAgent,
     toMemoryEvent: toContentMemoryEvent,
+  }),
+  creative: Object.freeze({
+    run: runCreativeTextPipeline,
+    toMemoryEvent: toCreativeMemoryEvent,
   }),
 });
 
@@ -98,7 +108,16 @@ async function executeCanonicalPipeline(options = {}) {
       memoryEvent,
       quality,
       agentOutput,
-      memoryOptions,
+      memoryOptions: {
+        ...memoryOptions,
+        payloadExtensions: {
+          ...memoryOptions.payloadExtensions,
+          contextVersion: contextSlice?.contextVersion ?? null,
+          sourceEventIds: (contextSlice?.relevantEvents || [])
+            .map((event) => event.id)
+            .filter(Boolean),
+        },
+      },
     });
   }
 
@@ -135,7 +154,10 @@ async function persistPipelineOutput({
     riskLevel: quality.riskLevel,
     task: executionPlan.task,
     summary: memoryEvent.summary,
-    payload: memoryEvent.payload,
+    payload: {
+      ...memoryEvent.payload,
+      ...memoryOptions.payloadExtensions,
+    },
     supersedes: memoryOptions.supersedes || null,
     createdBy: memoryOptions.createdBy,
   };
@@ -170,4 +192,125 @@ async function persistPipelineOutput({
   }
 }
 
-module.exports = { executeCanonicalPipeline, AGENT_DEFINITIONS };
+async function executeCreativeImageStage(options = {}) {
+  const {
+    creativeOutput,
+    executionPlan,
+    brief,
+    memoryOptions = {},
+  } = options;
+
+  if (!creativeOutput || executionPlan?.module !== "creative" || !brief) {
+    throw new Error(
+      "executeCreativeImageStage: creativeOutput, Creative executionPlan, and brief are required.",
+    );
+  }
+
+  try {
+    const agentOutput = await runCreativeImagePipeline({ creativeOutput });
+    const memoryEvent = toImageAssetMemoryEvent(agentOutput, {
+      brief,
+      executionPlan,
+    });
+    const quality = runQualityChecks(memoryEvent, executionPlan, brief);
+    const reviewPassed = agentOutput.review?.passed === true;
+    const approvalStatus =
+      reviewPassed && quality.passed
+        ? quality.approvalRequired
+          ? "pending"
+          : "auto_saved"
+        : "rejected";
+    const memoryWrite = await persistCreativeImageEvent({
+      executionPlan,
+      memoryEvent,
+      quality,
+      approvalStatus,
+      memoryOptions,
+    });
+
+    return {
+      agentOutput,
+      memoryEvent,
+      quality,
+      reviewPassed,
+      memoryWrite,
+      imageStatus: approvalStatus === "rejected" ? "failed" : "ready",
+    };
+  } catch (error) {
+    const failureEvent = {
+      module: "creative",
+      artifact: "image_asset",
+      summary: `${creativeOutput.title} image generation failed`,
+      payload: {
+        type: creativeOutput.type,
+        title: creativeOutput.title,
+        task: executionPlan.task,
+        imageStatus: "failed",
+        error: error.message,
+        metadata: creativeOutput.metadata || {},
+        generatedAt: new Date().toISOString(),
+      },
+    };
+    const memoryWrite = await persistCreativeImageEvent({
+      executionPlan,
+      memoryEvent: failureEvent,
+      quality: { score: 0, riskLevel: "medium" },
+      approvalStatus: "rejected",
+      memoryOptions,
+    });
+    return {
+      agentOutput: creativeOutput,
+      memoryEvent: failureEvent,
+      quality: null,
+      reviewPassed: false,
+      memoryWrite,
+      imageStatus: "failed",
+      error,
+    };
+  }
+}
+
+async function persistCreativeImageEvent({
+  executionPlan,
+  memoryEvent,
+  quality,
+  approvalStatus,
+  memoryOptions,
+}) {
+  if (executionPlan.mode !== "campaign") {
+    return { memory: { skipped: true, reason: "tool_mode" } };
+  }
+
+  const canonicalEvent = {
+    campaignId: executionPlan.campaignId,
+    module: "creative",
+    artifact: "image_asset",
+    approvalStatus,
+    confidence: quality.score,
+    riskLevel: quality.riskLevel,
+    task: executionPlan.task,
+    summary: memoryEvent.summary,
+    payload: {
+      ...memoryEvent.payload,
+      ...memoryOptions.payloadExtensions,
+    },
+    supersedes: memoryOptions.supersedes || null,
+    createdBy: memoryOptions.createdBy,
+  };
+  const event = await writeMemoryEvent(canonicalEvent, {
+    dbAdapter: memoryOptions.dbAdapter,
+  });
+  return {
+    memory: {
+      saved: true,
+      storage: "campaign_memory_events",
+      event,
+    },
+  };
+}
+
+module.exports = {
+  executeCanonicalPipeline,
+  executeCreativeImageStage,
+  AGENT_DEFINITIONS,
+};

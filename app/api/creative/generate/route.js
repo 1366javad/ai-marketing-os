@@ -2,18 +2,14 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCampaignById } from "@/app/lib/db/campaigns";
 import { createCampaignOutput } from "@/app/lib/db/campaignOutputs";
 import { validateInput } from "@/app/lib/ai/input-guard";
-import { runOrchestrator } from "@/app/lib/ai/orchestrator";
-import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
-import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
-import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
-  formatCreativeMarkdown,
-  runCreativeImagePipeline,
-  runCreativeTextPipeline,
-  toCreativeMemoryEvent,
-  toImageAssetMemoryEvent,
-} from "@/app/lib/ai/agents/creative";
-import { runQualityChecks } from "@/app/lib/ai/quality";
+  executeCanonicalPipeline,
+  executeCreativeImageStage,
+  runOrchestrator,
+} from "@/app/lib/ai/orchestrator";
+import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
+import { formatCreativeMarkdown } from "@/app/lib/ai/agents/creative";
 import {
   getAiErrorMessage,
   getAiErrorStatus,
@@ -105,39 +101,33 @@ export async function POST(request) {
       },
     });
 
-    const contextSlice = executionPlan.needsContext
-      ? await getCampaignContextSlice(
-          executionPlan.campaignId,
-          executionPlan.module,
-          executionPlan.task,
-          {
-            includePending: false,
-            contextDbAdapter: createContextDbAdapter(campaign, body),
-            eventsDbAdapter: createSupabaseEventsAdapter(supabase),
-          },
-        )
-      : null;
-
-    const brief = {
-      ...buildBrief(guard.normalizedPrompt, executionPlan, contextSlice),
-      requestedModule: "creative",
-      normalizedTask,
+    const pipeline = await executeCanonicalPipeline({
       normalizedPrompt: guard.normalizedPrompt,
-      platform: body.platform || "instagram",
-      visualDirection: body.visualDirection || "",
-      tone: body.tone || "professional",
-      relevantEvents: contextSlice?.relevantEvents || [],
-    };
-
-    const creativeOutput = await runCreativeTextPipeline({
-      brief,
       executionPlan,
+      contextOptions: {
+        contextDbAdapter: createContextDbAdapter(campaign, body),
+        eventsDbAdapter: createSupabaseEventsAdapter(supabase),
+      },
+      briefExtensions: {
+        platform: body.platform || "instagram",
+        visualDirection: body.visualDirection || "",
+        tone: body.tone || "professional",
+      },
+      memoryOptions: createCreativeConceptMemoryOptions({
+        supabase,
+        user,
+        campaign,
+        prompt: guard.normalizedPrompt,
+        operationId,
+      }),
     });
-    const memoryEvent = toCreativeMemoryEvent(creativeOutput, {
+    const {
+      agentOutput: creativeOutput,
       brief,
-      executionPlan,
-    });
-    const quality = runQualityChecks(memoryEvent, executionPlan, brief);
+      quality,
+      memoryWrite,
+      contextSlice,
+    } = pipeline;
 
     if (!quality.passed) {
       await failUsageEvent({
@@ -158,19 +148,6 @@ export async function POST(request) {
     }
 
     const markdown = formatCreativeMarkdown(creativeOutput);
-    const memoryWrite = await safeWriteCreativeMemory({
-      supabase,
-      user,
-      campaign,
-      prompt: guard.normalizedPrompt,
-      markdown,
-      creativeOutput,
-      memoryEvent,
-      executionPlan,
-      quality,
-      operationId,
-      imageStatus: "generating",
-    });
 
     queueCreativeImageGeneration({
       supabase,
@@ -184,6 +161,7 @@ export async function POST(request) {
       brief,
       creditCheck,
       memoryWrite,
+      contextSlice,
     });
 
     return Response.json({
@@ -286,93 +264,65 @@ async function runCreativeImageBackground({
   brief,
   creditCheck,
   memoryWrite,
+  contextSlice,
 }) {
-  try {
-    const outputWithImage = await runCreativeImagePipeline({ creativeOutput });
-    const imageMemoryEvent = toImageAssetMemoryEvent(outputWithImage, {
-      brief,
-      executionPlan,
-    });
-    const imageQuality = runQualityChecks(
-      imageMemoryEvent,
-      executionPlan,
-      brief,
-    );
-    const imagePassed = outputWithImage.review?.passed && imageQuality.passed;
+  const imageStage = await executeCreativeImageStage({
+    creativeOutput,
+    executionPlan,
+    brief,
+    memoryOptions: {
+      createdBy: user.id,
+      dbAdapter: createSupabaseMemoryWriter(supabase),
+      payloadExtensions: {
+        operationId,
+        imageStatus: "ready",
+        contextVersion: contextSlice?.contextVersion ?? null,
+        sourceEventIds: (contextSlice?.relevantEvents || [])
+          .map((event) => event.id)
+          .filter(Boolean),
+      },
+    },
+  });
+  const outputWithImage = imageStage.agentOutput;
+  const imagePassed = imageStage.imageStatus === "ready";
 
-    await writeCreativeImageMemory({
-      supabase,
-      user,
-      campaign,
-      creativeOutput: outputWithImage,
-      imageMemoryEvent,
-      executionPlan,
-      imageQuality,
-      operationId,
-      imageStatus: imagePassed ? "ready" : "failed",
-    });
-
-    await completeUsageEvent({
-      supabase,
-      usageId,
+  await completeUsageEvent({
+    supabase,
+    usageId,
+    provider:
+      outputWithImage.asset?.provider || outputWithImage.metadata?.provider,
+    model: outputWithImage.asset?.model || outputWithImage.metadata?.model,
+    status: "completed",
+    creditsUsed: creditCheck.billableCredits,
+    cost: outputWithImage.metadata?.cost || 0,
+    metadata: {
+      ...outputWithImage.metadata,
+      imageStatus: imageStage.imageStatus,
+      imageError: imageStage.error?.message,
+      memorySaved: Boolean(memoryWrite.memory),
+      outputId: memoryWrite.output?.id || null,
       provider:
         outputWithImage.asset?.provider || outputWithImage.metadata?.provider,
       model: outputWithImage.asset?.model || outputWithImage.metadata?.model,
-      status: "completed",
-      creditsUsed: creditCheck.billableCredits,
-      cost: outputWithImage.metadata?.cost || 0,
-      metadata: {
-        ...outputWithImage.metadata,
-        imageStatus: imagePassed ? "ready" : "failed",
-        memorySaved: Boolean(memoryWrite.memory),
-        outputId: memoryWrite.output?.id || null,
-        provider:
-          outputWithImage.asset?.provider || outputWithImage.metadata?.provider,
-        model: outputWithImage.asset?.model || outputWithImage.metadata?.model,
-        latencyMs:
-          outputWithImage.asset?.latencyMs ||
-          outputWithImage.metadata?.latencyMs,
-        strategyProvider: outputWithImage.metadata?.provider,
-        strategyModel: outputWithImage.metadata?.model,
-        assetProvider: outputWithImage.asset?.provider || null,
-        assetModel: outputWithImage.asset?.model || null,
-        imageUsage: outputWithImage.metadata?.imageUsage || null,
-        providerReportedTokens: false,
-        internalCreditBypass: Boolean(creditCheck.internalBypass),
-        internalCreditBypassReason: creditCheck.internalBypassReason,
-      },
-    });
+      latencyMs:
+        outputWithImage.asset?.latencyMs || outputWithImage.metadata?.latencyMs,
+      strategyProvider: outputWithImage.metadata?.provider,
+      strategyModel: outputWithImage.metadata?.model,
+      assetProvider: outputWithImage.asset?.provider || null,
+      assetModel: outputWithImage.asset?.model || null,
+      imageUsage: outputWithImage.metadata?.imageUsage || null,
+      providerReportedTokens: false,
+      internalCreditBypass: Boolean(creditCheck.internalBypass),
+      internalCreditBypassReason: creditCheck.internalBypassReason,
+    },
+  });
 
-    if (!imagePassed) {
-      console.error("Creative background image failed quality checks:", {
-        operationId,
-        review: outputWithImage.review,
-        imageQuality,
-      });
-    }
-  } catch (error) {
-    await writeCreativeImageFailure({
-      supabase,
-      user,
-      campaign,
-      creativeOutput,
-      executionPlan,
+  if (!imagePassed) {
+    console.error("Creative background image failed quality checks:", {
       operationId,
-      error,
-    });
-    await completeUsageEvent({
-      supabase,
-      usageId,
-      provider: creativeOutput.metadata?.provider,
-      model: creativeOutput.metadata?.model,
-      status: "completed",
-      creditsUsed: creditCheck.billableCredits,
-      metadata: {
-        ...creativeOutput.metadata,
-        imageStatus: "failed",
-        imageError: error.message,
-        providerReportedTokens: false,
-      },
+      review: outputWithImage.review,
+      imageQuality: imageStage.quality,
+      error: imageStage.error?.message,
     });
   }
 }
@@ -414,216 +364,70 @@ function createContextDbAdapter(campaign, body) {
   };
 }
 
-async function safeWriteCreativeMemory({
+function createCreativeConceptMemoryOptions({
   supabase,
   user,
   campaign,
   prompt,
-  markdown,
-  creativeOutput,
-  memoryEvent,
-  executionPlan,
-  quality,
   operationId,
-  imageStatus = "generating",
 }) {
-  if (executionPlan.mode !== "campaign" || !campaign) {
-    return {
-      output: creativeOutput,
-      memory: { skipped: true, reason: "tool_mode" },
-    };
-  }
-
-  const generatedAt = new Date().toISOString();
-  const conceptEventRow = {
-    campaign_id: campaign.id,
-    type: memoryEvent.artifact,
-    module: memoryEvent.module,
-    artifact: memoryEvent.artifact,
-    approval_status: quality.approvalRequired ? "pending" : "auto_saved",
-    confidence: quality.score,
-    risk_level: quality.riskLevel,
-    task: executionPlan.task,
-    summary: memoryEvent.summary,
-    payload: {
-      ...memoryEvent.payload,
-      operationId,
-      imageStatus,
-      generatedAt,
-    },
-    supersedes: null,
-    created_by: user.id,
-  };
-  const { data, error } = await supabase
-    .from("campaign_memory_events")
-    .insert([conceptEventRow])
-    .select();
-
-  if (!error) {
-    return {
-      output: {
-        type: executionPlan.task,
-        title: creativeOutput.title,
-        prompt,
-        content: creativeOutput.asset?.imageUrl || markdown,
-        metadata: {
-          ...creativeOutput.metadata,
-          imageStatus,
-          operationId,
-          generatedAt,
-        },
-      },
-      memory: {
-        saved: true,
-        storage: "campaign_memory_events",
-        event: data?.find((item) => item.artifact === "creative_concept") || null,
-        events: data || [],
-      },
-    };
-  }
-
-  console.warn("Creative memory write failed; falling back to campaign_outputs:", {
-    message: error.message,
-    code: error.code,
-  });
-
-  const output = await createCampaignOutput({
-    campaignId: campaign.id,
-    module: "creative",
-    type: executionPlan.task,
-    title: creativeOutput.title,
+  const formatOutput = (agentOutput, task) => ({
+    type: task,
+    title: agentOutput.title,
     prompt,
-    content: creativeOutput.asset?.imageUrl || markdown,
+    content: formatCreativeMarkdown(agentOutput),
     metadata: {
-      canonical: true,
-      quality,
-      memoryEvent: conceptEventRow,
-      ...creativeOutput.metadata,
-      imageStatus,
+      ...agentOutput.metadata,
+      imageStatus: "generating",
       operationId,
-      generatedAt,
+      generatedAt: new Date().toISOString(),
     },
   });
 
   return {
-    output,
-    memory: {
-      saved: false,
-      fallbackSaved: true,
-      storage: "campaign_outputs",
-      error: error.message,
+    createdBy: user.id,
+    dbAdapter: createSupabaseMemoryWriter(supabase),
+    payloadExtensions: {
+      operationId,
+      imageStatus: "generating",
+    },
+    onToolMode: ({ agentOutput, memoryEvent }) => ({
+      output: formatOutput(agentOutput, memoryEvent.artifact),
+      memory: { skipped: true, reason: "tool_mode" },
+    }),
+    onWriteSuccess: ({ agentOutput, canonicalEvent }) =>
+      formatOutput(agentOutput, canonicalEvent.task),
+    onWriteFailure: async ({ error, canonicalEvent, agentOutput, quality }) => {
+      console.warn("Creative memory write failed; falling back to campaign_outputs:", {
+        message: error.message,
+        code: error.code,
+      });
+      const output = await createCampaignOutput({
+        campaignId: campaign.id,
+        module: "creative",
+        type: canonicalEvent.task,
+        title: agentOutput.title,
+        prompt,
+        content: formatCreativeMarkdown(agentOutput),
+        metadata: {
+          canonical: true,
+          quality,
+          memoryEvent: canonicalEvent,
+          ...agentOutput.metadata,
+          imageStatus: "generating",
+          operationId,
+          generatedAt: new Date().toISOString(),
+        },
+      });
+      return {
+        output,
+        memory: {
+          saved: false,
+          fallbackSaved: true,
+          storage: "campaign_outputs",
+          error: error.message,
+        },
+      };
     },
   };
-}
-
-async function writeCreativeImageMemory({
-  supabase,
-  user,
-  campaign,
-  creativeOutput,
-  imageMemoryEvent,
-  executionPlan,
-  imageQuality,
-  operationId,
-  imageStatus,
-}) {
-  if (!campaign || !imageMemoryEvent) return null;
-
-  const generatedAt = new Date().toISOString();
-  const imageEventRow = {
-    campaign_id: campaign.id,
-    type: imageMemoryEvent.artifact,
-    module: imageMemoryEvent.module,
-    artifact: imageMemoryEvent.artifact,
-    approval_status:
-      imageStatus === "ready" && imageQuality.approvalRequired
-        ? "pending"
-        : imageStatus === "ready"
-          ? "auto_saved"
-          : "rejected",
-    confidence: imageQuality.score,
-    risk_level: imageQuality.riskLevel,
-    task: executionPlan.task,
-    summary: imageMemoryEvent.summary,
-    payload: {
-      ...imageMemoryEvent.payload,
-      operationId,
-      imageStatus,
-      generatedAt,
-    },
-    supersedes: null,
-    created_by: user.id,
-  };
-
-  const { data, error } = await supabase
-    .from("campaign_memory_events")
-    .insert(imageEventRow)
-    .select()
-    .maybeSingle();
-
-  if (error) {
-    console.error("Creative image memory write failed:", {
-      operationId,
-      campaignId: campaign.id,
-      message: error.message,
-      code: error.code,
-    });
-    throw error;
-  }
-
-  return data;
-}
-
-async function writeCreativeImageFailure({
-  supabase,
-  user,
-  campaign,
-  creativeOutput,
-  executionPlan,
-  operationId,
-  error,
-}) {
-  if (!campaign) return null;
-
-  const generatedAt = new Date().toISOString();
-  const imageEventRow = {
-    campaign_id: campaign.id,
-    type: "image_asset",
-    module: "creative",
-    artifact: "image_asset",
-    approval_status: "rejected",
-    confidence: 0,
-    risk_level: "medium",
-    task: executionPlan.task,
-    summary: `${creativeOutput.title} image generation failed`,
-    payload: {
-      type: creativeOutput.type,
-      title: creativeOutput.title,
-      task: executionPlan.task,
-      operationId,
-      imageStatus: "failed",
-      error: error.message,
-      metadata: creativeOutput.metadata || {},
-      generatedAt,
-    },
-    supersedes: null,
-    created_by: user.id,
-  };
-
-  const { data, error: writeError } = await supabase
-    .from("campaign_memory_events")
-    .insert(imageEventRow)
-    .select()
-    .maybeSingle();
-
-  if (writeError) {
-    console.error("Creative image failure memory write failed:", {
-      operationId,
-      campaignId: campaign.id,
-      message: writeError.message,
-      code: writeError.code,
-    });
-  }
-
-  return data;
 }

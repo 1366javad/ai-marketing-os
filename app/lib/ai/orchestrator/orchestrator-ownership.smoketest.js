@@ -5,6 +5,7 @@ const routeFiles = [
   "app/api/research/generate/route.js",
   "app/api/seo/generate/route.js",
   "app/api/content/generate/route.js",
+  "app/api/creative/generate/route.js",
 ];
 const forbiddenDirectCalls = [
   "getCampaignContextSlice(",
@@ -12,8 +13,11 @@ const forbiddenDirectCalls = [
   "runResearchAgent(",
   "runSeoAgent(",
   "runContentAgent(",
+  "runCreativeTextPipeline(",
+  "runCreativeImagePipeline(",
   "runQualityChecks(",
   "writeMemoryEvent(",
+  '.from("campaign_memory_events")',
 ];
 
 let passed = 0;
@@ -30,6 +34,16 @@ for (const file of routeFiles) {
   passed += 1;
   console.log(`PASS: ${file} delegates canonical execution to OrchestratorService`);
 }
+
+const creativeRoute = fs.readFileSync(
+  path.resolve("app/api/creative/generate/route.js"),
+  "utf8",
+);
+if (!creativeRoute.includes("executeCreativeImageStage(")) {
+  throw new Error("Creative background image stage is not owned by OrchestratorService.");
+}
+passed += 1;
+console.log("PASS: Creative background image delegates to OrchestratorService");
 
 const orchestratorSource = fs.readFileSync(
   path.resolve("app/lib/ai/orchestrator/executeCanonicalPipeline.js"),
