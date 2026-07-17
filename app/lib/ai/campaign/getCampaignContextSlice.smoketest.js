@@ -22,9 +22,12 @@ const MOCK_EVENTS = [
   event("evt_pain", "research", "pain_points_research", "approved"),
   event("evt_keyword", "seo", "keyword_research", "auto_saved"),
   event("evt_topic", "seo", "topic_cluster", "approved"),
+  event("evt_strategy", "seo", "seo_strategy", "approved"),
   event("evt_blog", "content", "blog_draft", "approved"),
   event("evt_blog_pending", "content", "blog_draft", "pending"),
   event("evt_creative", "creative", "creative_concept", "approved"),
+  event("evt_image", "creative", "image_asset", "approved"),
+  event("evt_image_pending", "creative", "image_asset", "pending"),
 ];
 
 function event(id, module, artifact, approvalStatus) {
@@ -119,8 +122,11 @@ async function run() {
     options,
   );
   assert(
-    "Ads reads approved creative concept",
-    ads.relevantEvents.some((item) => item.artifact === "creative_concept"),
+    "Ads reads only approved strategic SEO and Creative artifacts",
+    ads.relevantEvents.some((item) => item.artifact === "seo_strategy") &&
+      ads.relevantEvents.some((item) => item.artifact === "creative_concept") &&
+      ads.relevantEvents.some((item) => item.id === "evt_image") &&
+      !ads.relevantEvents.some((item) => item.id === "evt_image_pending"),
   );
   assert(
     "Ads does not read blog drafts",
@@ -146,7 +152,7 @@ async function run() {
   );
   assert(
     "Analytics sees all approved or auto-saved artifacts",
-    analytics.relevantEvents.length === 7,
+    analytics.relevantEvents.length === 9,
   );
 
   console.log(`\n${passed} passed, ${failed} failed`);

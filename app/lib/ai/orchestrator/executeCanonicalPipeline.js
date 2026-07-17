@@ -15,6 +15,7 @@ const {
   toCreativeMemoryEvent,
   toImageAssetMemoryEvent,
 } = require("../agents/creative");
+const { runAdsAgent, toAdsMemoryEvent } = require("../agents/ads");
 
 const AGENT_DEFINITIONS = Object.freeze({
   research: Object.freeze({
@@ -33,6 +34,10 @@ const AGENT_DEFINITIONS = Object.freeze({
   creative: Object.freeze({
     run: runCreativeTextPipeline,
     toMemoryEvent: toCreativeMemoryEvent,
+  }),
+  ads: Object.freeze({
+    run: runAdsAgent,
+    toMemoryEvent: toAdsMemoryEvent,
   }),
 });
 
@@ -128,7 +133,21 @@ async function executeCanonicalPipeline(options = {}) {
     agentOutput,
     memoryEvent,
     quality,
+    riskGate: buildRiskGateResult(quality),
     memoryWrite,
+  };
+}
+
+function buildRiskGateResult(quality) {
+  const blocked = quality.riskLevel === "high";
+
+  return {
+    blocked,
+    publishable: !quality.approvalRequired,
+    requiresExplicitApproval: blocked,
+    reason: blocked
+      ? "High-risk output requires explicit human approval before publish or spend."
+      : null,
   };
 }
 
@@ -313,4 +332,5 @@ module.exports = {
   executeCanonicalPipeline,
   executeCreativeImageStage,
   AGENT_DEFINITIONS,
+  buildRiskGateResult,
 };

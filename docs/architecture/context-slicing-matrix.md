@@ -30,7 +30,7 @@ Pending artifacts are never visible to other agents.
 | seo | seo_strategy | content, creative, ads | High-risk — all downstream agents read this |
 | seo | meta_description | (none) | Terminal output — Assets/export only, no agent reads it |
 | seo | faq_generation | content | Content may incorporate FAQs into long-form |
-| content | blog_draft | creative, ads | Creative takes direction from approved drafts |
+| content | blog_draft | creative | Creative takes direction from approved drafts |
 | content | email_draft | (none) | Terminal output |
 | creative | creative_concept | ads | Ads build on approved creative concepts |
 | creative | image_asset | ads | Ads reference approved visuals |

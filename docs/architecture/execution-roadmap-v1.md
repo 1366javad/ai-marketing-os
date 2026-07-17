@@ -61,7 +61,7 @@ Research   (feeds everyone — no dependencies)
    ↓
 SEO        (feeds Content, Creative, Ads)
    ↓
-Content    (feeds Creative, Ads) — already 🟡 in progress, finish alongside SEO
+Content    (feeds Creative) — already 🟡 in progress, finish alongside SEO
    ↓
 Creative   (feeds Ads)
    ↓

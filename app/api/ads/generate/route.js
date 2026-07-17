@@ -2,16 +2,12 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCampaignById } from "@/app/lib/db/campaigns";
 import { createCampaignOutput } from "@/app/lib/db/campaignOutputs";
 import { validateInput } from "@/app/lib/ai/input-guard";
-import { runOrchestrator } from "@/app/lib/ai/orchestrator";
-import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
-import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
-import { buildBrief } from "@/app/lib/ai/brief-builder";
 import {
-  formatAdsMarkdown,
-  runAdsAgent,
-  toAdsMemoryEvent,
-} from "@/app/lib/ai/agents/ads";
-import { runQualityChecks } from "@/app/lib/ai/quality";
+  executeCanonicalPipeline,
+  runOrchestrator,
+} from "@/app/lib/ai/orchestrator";
+import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
+import { createSupabaseMemoryWriter } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
 import {
   getAiErrorMessage,
   getAiErrorStatus,
@@ -100,48 +96,33 @@ export async function POST(request) {
       },
     });
 
-    const contextSlice = executionPlan.needsContext
-      ? await getCampaignContextSlice(
-          executionPlan.campaignId,
-          executionPlan.module,
-          executionPlan.task,
-          {
-            includePending: false,
-            contextDbAdapter: createContextDbAdapter(campaign, body),
-            eventsDbAdapter: createSupabaseEventsAdapter(supabase),
-          },
-        )
-      : null;
-
-    const brief = {
-      ...buildBrief(guard.normalizedPrompt, executionPlan, contextSlice),
-      requestedModule: "ads",
-      normalizedTask,
-      normalizedPrompt: body.prompt?.trim() || "",
-      campaignName: campaign?.name || "",
-      goal: body.goal?.trim() || contextSlice?.context?.goal || campaign?.goal || "",
-      audience:
-        body.audience?.trim() ||
-        contextSlice?.context?.audience ||
-        campaign?.target_audience ||
-        "",
-      offer:
-        body.offer?.trim() ||
-        contextSlice?.context?.offer ||
-        campaign?.product_name ||
-        campaign?.name ||
-        "",
-      budget: body.budget?.trim() || "",
-      platforms: resolvePlatforms(normalizedTask),
-      relevantEvents: contextSlice?.relevantEvents || [],
-    };
-
-    const adsOutput = await runAdsAgent({ brief, executionPlan });
-    const memoryEvent = toAdsMemoryEvent(adsOutput, {
-      brief,
+    const pipeline = await executeCanonicalPipeline({
+      normalizedPrompt: guard.normalizedPrompt,
       executionPlan,
+      contextOptions: {
+        contextDbAdapter: createContextDbAdapter(campaign, body),
+        eventsDbAdapter: createSupabaseEventsAdapter(supabase),
+      },
+      briefExtensions: {
+        normalizedPrompt: body.prompt?.trim() || "",
+        budget: body.budget?.trim() || "",
+        platforms: resolvePlatforms(normalizedTask),
+      },
+      memoryOptions: createAdsMemoryOptions({
+        supabase,
+        user,
+        campaign,
+        prompt: guard.normalizedPrompt,
+      }),
     });
-    const quality = runQualityChecks(memoryEvent, executionPlan, brief);
+    const {
+      agentOutput: adsOutput,
+      memoryEvent,
+      quality,
+      riskGate,
+      contextSlice,
+      memoryWrite,
+    } = pipeline;
 
     if (!quality.passed) {
       await failUsageEvent({
@@ -160,19 +141,6 @@ export async function POST(request) {
         { status: 422 },
       );
     }
-
-    const markdown = formatAdsMarkdown(adsOutput);
-    const memoryWrite = await writeAdsMemory({
-      supabase,
-      user,
-      campaign,
-      prompt: guard.normalizedPrompt,
-      markdown,
-      adsOutput,
-      memoryEvent,
-      executionPlan,
-      quality,
-    });
 
     await completeUsageEvent({
       supabase,
@@ -197,6 +165,13 @@ export async function POST(request) {
       adsOutput,
       executionPlan,
       quality,
+      riskGate,
+      approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
+      blocked: riskGate.blocked,
+      publishable: riskGate.publishable,
+      ...(contextSlice
+        ? { contextVersion: contextSlice.contextVersion }
+        : {}),
       memory: memoryWrite.memory,
     });
   } catch (error) {
@@ -290,98 +265,48 @@ function createContextDbAdapter(campaign, body) {
   };
 }
 
-async function writeAdsMemory({
+function createAdsMemoryOptions({
   supabase,
   user,
   campaign,
   prompt,
-  markdown,
-  adsOutput,
-  memoryEvent,
-  executionPlan,
-  quality,
 }) {
-  const generatedAt = new Date().toISOString();
-  const fallbackOutput = {
-    type: executionPlan.task,
-    title: adsOutput.title,
-    prompt,
-    content: markdown,
-    metadata: {
-      ...adsOutput.metadata,
-      generatedAt,
-    },
-  };
-
-  if (executionPlan.mode !== "campaign" || !campaign) {
-    return {
-      output: fallbackOutput,
-      memory: { skipped: true, reason: "tool_mode" },
-    };
-  }
-
-  const eventRow = {
-    campaign_id: campaign.id,
-    type: memoryEvent.artifact,
-    module: memoryEvent.module,
-    artifact: memoryEvent.artifact,
-    approval_status: "pending",
-    confidence: quality.score,
-    risk_level: "high",
-    task: executionPlan.task,
-    summary: memoryEvent.summary,
-    payload: {
-      ...memoryEvent.payload,
-      generatedAt,
-    },
-    supersedes: null,
-    created_by: user.id,
-  };
-  const { data, error } = await supabase
-    .from("campaign_memory_events")
-    .insert(eventRow)
-    .select()
-    .single();
-
-  if (!error) {
-    return {
-      output: fallbackOutput,
-      memory: {
-        saved: true,
-        storage: "campaign_memory_events",
-        event: data,
-      },
-    };
-  }
-
-  console.warn("Ads memory write failed; falling back to campaign_outputs:", {
-    message: error.message,
-    code: error.code,
-  });
-
-  const output = await createCampaignOutput({
-    campaignId: campaign.id,
-    module: "ads",
-    type: executionPlan.task,
-    title: adsOutput.title,
-    prompt,
-    content: markdown,
-    metadata: {
-      canonical: true,
-      quality,
-      memoryEvent: eventRow,
-      ...adsOutput.metadata,
-      generatedAt,
-    },
-  });
-
   return {
-    output,
-    memory: {
-      saved: false,
-      fallbackSaved: true,
-      storage: "campaign_outputs",
-      error: error.message,
+    createdBy: user.id,
+    dbAdapter: createSupabaseMemoryWriter(supabase),
+    onToolMode: ({ agentOutput }) => ({
+      output: agentOutput,
+      memory: { skipped: true, reason: "tool_mode" },
+    }),
+    onWriteFailure: async ({ error, canonicalEvent, agentOutput, quality }) => {
+      console.warn("Ads memory write failed; falling back to campaign_outputs:", {
+        message: error.message,
+        code: error.code,
+      });
+      const output = await createCampaignOutput({
+        campaignId: campaign.id,
+        module: "ads",
+        type: agentOutput.type,
+        title: agentOutput.title,
+        prompt,
+        content: JSON.stringify(agentOutput, null, 2),
+        metadata: {
+          canonical: true,
+          quality,
+          memoryEvent: canonicalEvent,
+          ...agentOutput.metadata,
+        },
+      });
+
+      return {
+        output,
+        memory: {
+          saved: false,
+          fallbackSaved: true,
+          storage: "campaign_outputs",
+          error: error.message,
+        },
+      };
     },
   };
 }

@@ -19,6 +19,8 @@ async function runAdsAgent({ brief, executionPlan }) {
     systemPrompt,
     userPrompt,
     temperature: 0.65,
+    maxTokens: 2400,
+    responseFormat: "json_object",
   });
 
   return normalizeAdsOutput(providerResult, { brief, executionPlan });
