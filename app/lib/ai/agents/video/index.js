@@ -1,5 +1,5 @@
-const { runTextProvider } = require("../providers");
-const { getProviderMetadata } = require("../providers/providerMetadata");
+const { runTextProvider } = require("../../providers");
+const { getProviderMetadata } = require("../../providers/providerMetadata");
 
 const ACTIVE_VIDEO_TASKS = new Set(["video_script", "storyboard"]);
 
@@ -17,6 +17,8 @@ async function runVideoPlanning({ brief, executionPlan }) {
     systemPrompt,
     userPrompt,
     temperature: 0.6,
+    maxTokens: 2400,
+    responseFormat: "json_object",
   });
 
   return normalizeVideoPlanningOutput(providerResult, { brief, task });

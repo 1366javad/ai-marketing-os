@@ -23,7 +23,7 @@
 | SEO | `/api/seo/generate` | 🟢 Canonical | None — removed after Sprint B validation | `agents/seo/` — SEO Agent V2 built and validated |
 | Content | `/api/content/generate` | 🟢 Canonical | None — removed after Sprint C validation | `agents/content/` — Content Agent V2 built and validated |
 | Creative | `/api/creative/generate` | 🟢 Canonical | None — removed after Sprint D validation | `agents/creative/` — Creative Agent V2 and image pipeline built and validated |
-| Video | `/api/ai/video` | 🔴 Legacy | `legacy/agents/video/index.js` | `agents/video/` — not yet built |
+| Video | `/api/video/planning/generate` | 🟢 Canonical | Final-video legacy routes retained outside Planning scope | `agents/video/` — Video Planning Agent V2 built and validated |
 | Ads | `/api/ads/generate` | 🟢 Canonical | None — removed after Sprint E validation | `agents/ads/` — Ads Agent V2 built and validated |
 | Analytics | `/api/analytics/generate` | 🟢 Canonical | None — no pre-canonical implementation existed | `agents/analytics/` — Analytics Agent V2 built and validated |
 
@@ -42,8 +42,8 @@ Status table above.
 | Marketing Input Guard | `app/lib/ai/input-guard/` | ✅ Built + smoke-tested |
 | Brief Builder | `app/lib/ai/brief-builder/` | ✅ Built + smoke-tested |
 | Quality Layer | `app/lib/ai/quality/` | ✅ Built + smoke-tested |
-| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research, SEO, Content, Creative, Ads, and Analytics canonical |
-| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research/SEO/Content/Creative/Ads/Analytics validated |
+| Agents | `app/lib/ai/agents/` | ✅ Research, SEO, Content, Creative, Ads, Analytics, and Video Planning canonical |
+| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + all Phase 1 canonical capabilities validated |
 
 ---
 
@@ -87,8 +87,8 @@ Once a Tab is migrated (🟢), it imports exclusively from canonical paths. No f
 
 ## Video Contract Status
 
-Video architecture is **Contract Locked**, but Video Agent V2 has not been
-built.
+Video architecture is **Contract Locked**, and Video Planning Agent V2 is
+built and validated.
 
 - Active planning tasks: `video_script`, `storyboard`
 - Phase 2 tasks: `reel_package`, `tiktok_video`, `youtube_short`,
@@ -96,7 +96,7 @@ built.
 - Active planning route: `/api/video/planning/generate`
 - The planning route uses the canonical Input Guard, Orchestrator, Context
   Slice, Brief Builder, Provider, Quality Layer, and Memory Write
-- No `app/lib/ai/agents/video/` exists yet
+- `app/lib/ai/agents/video/` owns `video_script` and `storyboard` only
 - Legacy final-video provider routes are not used by Campaign Video Workspace
 
 ## Who owns migration decisions

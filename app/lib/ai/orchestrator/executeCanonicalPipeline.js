@@ -20,6 +20,7 @@ const {
   runAnalyticsAgent,
   toAnalyticsMemoryEvent,
 } = require("../agents/analytics");
+const { runVideoPlanning, toVideoMemoryEvent } = require("../agents/video");
 
 const AGENT_DEFINITIONS = Object.freeze({
   research: Object.freeze({
@@ -46,6 +47,10 @@ const AGENT_DEFINITIONS = Object.freeze({
   analytics: Object.freeze({
     run: runAnalyticsAgent,
     toMemoryEvent: toAnalyticsMemoryEvent,
+  }),
+  video: Object.freeze({
+    run: runVideoPlanning,
+    toMemoryEvent: toVideoMemoryEvent,
   }),
 });
 

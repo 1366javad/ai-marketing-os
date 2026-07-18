@@ -2,18 +2,16 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCampaignById } from "@/app/lib/db/campaigns";
 import { createCampaignOutput } from "@/app/lib/db/campaignOutputs";
 import { validateInput } from "@/app/lib/ai/input-guard";
-import { runOrchestrator } from "@/app/lib/ai/orchestrator";
-import { getCampaignContextSlice } from "@/app/lib/ai/campaign/getCampaignContextSlice";
+import {
+  executeCanonicalPipeline,
+  runOrchestrator,
+} from "@/app/lib/ai/orchestrator";
 import { createSupabaseEventsAdapter } from "@/app/lib/ai/campaign/events/createSupabaseEventsAdapter";
-import { buildBrief } from "@/app/lib/ai/brief-builder";
+import { createSupabaseMemoryWriter } from "@/app/lib/ai/campaign/events/createSupabaseMemoryWriter";
 import {
   ACTIVE_VIDEO_TASKS,
-  formatVideoPlanningText,
   normalizeVideoTask,
-  runVideoPlanning,
-  toVideoMemoryEvent,
-} from "@/app/lib/ai/video-planning";
-import { runQualityChecks } from "@/app/lib/ai/quality";
+} from "@/app/lib/ai/agents/video";
 import {
   getAiErrorMessage,
   getAiErrorStatus,
@@ -120,37 +118,36 @@ export async function POST(request) {
       },
     });
 
-    const contextSlice = await getCampaignContextSlice(
-      executionPlan.campaignId,
-      "video",
-      task,
-      {
-        includePending: false,
+    const pipeline = await executeCanonicalPipeline({
+      normalizedPrompt: guard.normalizedPrompt,
+      executionPlan,
+      contextOptions: {
         contextDbAdapter: createContextAdapter(campaign, body),
         eventsDbAdapter: createSupabaseEventsAdapter(supabase),
       },
-    );
-    const brief = {
-      ...buildBrief(guard.normalizedPrompt, executionPlan, contextSlice),
-      campaignName: campaign?.name || "",
-      goal: body.goal || campaign?.goal || "",
-      audience:
-        body.audience ||
-        campaign?.audience ||
-        campaign?.target_audience ||
-        "",
-      offer: campaign?.product_name || campaign?.name || "",
-      platform: body.platform || "Instagram",
-      duration: body.duration || "30 seconds",
-      cta: body.cta || "",
-      visualStyle: body.visualStyle || "",
-      direction: body.direction || "",
-      relevantEvents: contextSlice.relevantEvents || [],
-    };
-
-    const videoOutput = await runVideoPlanning({ brief, executionPlan });
-    const memoryEvent = toVideoMemoryEvent(videoOutput);
-    const quality = runQualityChecks(memoryEvent, executionPlan, brief);
+      briefExtensions: {
+        campaignName: campaign?.name || "",
+        platform: body.platform || "Instagram",
+        duration: body.duration || "30 seconds",
+        cta: body.cta || "",
+        visualStyle: body.visualStyle || "",
+        direction: body.direction || "",
+      },
+      memoryOptions: createVideoMemoryOptions({
+        supabase,
+        user,
+        campaign,
+        prompt: guard.normalizedPrompt,
+      }),
+    });
+    const {
+      agentOutput: videoOutput,
+      memoryEvent,
+      quality,
+      riskGate,
+      contextSlice,
+      memoryWrite,
+    } = pipeline;
 
     if (!quality.passed) {
       await failUsageEvent({
@@ -170,68 +167,6 @@ export async function POST(request) {
       );
     }
 
-    const content = formatVideoPlanningText(videoOutput);
-    const generatedAt = new Date().toISOString();
-    const eventRow = {
-      campaign_id: campaign.id,
-      type: memoryEvent.artifact,
-      module: memoryEvent.module,
-      artifact: memoryEvent.artifact,
-      approval_status: "pending",
-      confidence: quality.score,
-      risk_level: "medium",
-      task,
-      summary: memoryEvent.summary,
-      payload: {
-        ...memoryEvent.payload,
-        generatedAt,
-      },
-      supersedes: null,
-      created_by: user.id,
-    };
-    const { data: savedEvent, error: memoryError } = await supabase
-      .from("campaign_memory_events")
-      .insert(eventRow)
-      .select()
-      .single();
-
-    let output = {
-      type: task,
-      title: videoOutput.title,
-      content,
-      metadata: { ...videoOutput.metadata, generatedAt },
-    };
-    let memory = {
-      saved: !memoryError,
-      storage: "campaign_memory_events",
-      event: savedEvent || null,
-    };
-
-    if (memoryError) {
-      console.warn("Video planning memory fallback:", memoryError.message);
-      output = await createCampaignOutput({
-        campaignId: campaign.id,
-        module: "video",
-        type: task,
-        title: videoOutput.title,
-        prompt: guard.normalizedPrompt,
-        content,
-        metadata: {
-          canonicalPlanning: true,
-          memoryEvent: eventRow,
-          quality,
-          ...videoOutput.metadata,
-          generatedAt,
-        },
-      });
-      memory = {
-        saved: false,
-        fallbackSaved: true,
-        storage: "campaign_outputs",
-        error: memoryError.message,
-      };
-    }
-
     await completeUsageEvent({
       supabase,
       usageId: usage?.id,
@@ -244,14 +179,15 @@ export async function POST(request) {
 
     return Response.json({
       success: true,
-      videoOutput: {
-        ...videoOutput,
-        metadata: { ...videoOutput.metadata, generatedAt },
-      },
-      output,
+      artifact: memoryEvent.artifact,
+      approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
+      videoOutput,
+      output: memoryWrite.output || videoOutput,
       quality,
+      riskGate,
       executionPlan,
-      memory,
+      contextVersion: contextSlice?.contextVersion,
+      memory: memoryWrite.memory,
     });
   } catch (error) {
     try {
@@ -294,4 +230,37 @@ function createContextAdapter(campaign, body) {
     createdAt: campaign.created_at || "",
     updatedAt: campaign.updated_at || "",
   });
+}
+
+function createVideoMemoryOptions({ supabase, user, campaign, prompt }) {
+  return {
+    createdBy: user.id,
+    dbAdapter: createSupabaseMemoryWriter(supabase),
+    onWriteFailure: async ({ error, canonicalEvent, agentOutput, quality }) => {
+      console.warn("Video planning memory fallback:", error.message);
+      const output = await createCampaignOutput({
+        campaignId: campaign.id,
+        module: "video",
+        type: agentOutput.type,
+        title: agentOutput.title,
+        prompt,
+        content: JSON.stringify(agentOutput, null, 2),
+        metadata: {
+          canonicalPlanning: true,
+          memoryEvent: canonicalEvent,
+          quality,
+          ...agentOutput.metadata,
+        },
+      });
+      return {
+        output,
+        memory: {
+          saved: false,
+          fallbackSaved: true,
+          storage: "campaign_outputs",
+          error: error.message,
+        },
+      };
+    },
+  };
 }

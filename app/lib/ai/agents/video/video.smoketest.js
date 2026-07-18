@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { runQualityChecks } = require("../quality");
+const { runQualityChecks } = require("../../quality");
 const {
   normalizeVideoPlanningOutput,
   toVideoMemoryEvent,
