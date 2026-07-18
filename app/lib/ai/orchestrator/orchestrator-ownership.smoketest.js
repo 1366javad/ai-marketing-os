@@ -7,6 +7,7 @@ const routeFiles = [
   "app/api/content/generate/route.js",
   "app/api/creative/generate/route.js",
   "app/api/ads/generate/route.js",
+  "app/api/analytics/generate/route.js",
 ];
 const forbiddenDirectCalls = [
   "getCampaignContextSlice(",
@@ -17,6 +18,7 @@ const forbiddenDirectCalls = [
   "runCreativeTextPipeline(",
   "runCreativeImagePipeline(",
   "runAdsAgent(",
+  "runAnalyticsAgent(",
   "runQualityChecks(",
   "writeMemoryEvent(",
   '.from("campaign_memory_events")',

@@ -16,6 +16,10 @@ const {
   toImageAssetMemoryEvent,
 } = require("../agents/creative");
 const { runAdsAgent, toAdsMemoryEvent } = require("../agents/ads");
+const {
+  runAnalyticsAgent,
+  toAnalyticsMemoryEvent,
+} = require("../agents/analytics");
 
 const AGENT_DEFINITIONS = Object.freeze({
   research: Object.freeze({
@@ -38,6 +42,10 @@ const AGENT_DEFINITIONS = Object.freeze({
   ads: Object.freeze({
     run: runAdsAgent,
     toMemoryEvent: toAdsMemoryEvent,
+  }),
+  analytics: Object.freeze({
+    run: runAnalyticsAgent,
+    toMemoryEvent: toAnalyticsMemoryEvent,
   }),
 });
 
@@ -78,6 +86,7 @@ async function executeCanonicalPipeline(options = {}) {
     requestedModule: executionPlan.module,
     normalizedTask: executionPlan.task,
     normalizedPrompt,
+    context: contextSlice?.context || {},
     relevantEvents: contextSlice?.relevantEvents || [],
     ...(contextSlice?.dependencyDiagnostics
       ? { dependencyDiagnostics: contextSlice.dependencyDiagnostics }

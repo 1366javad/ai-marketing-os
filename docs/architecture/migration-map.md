@@ -25,7 +25,7 @@
 | Creative | `/api/creative/generate` | 🟢 Canonical | None — removed after Sprint D validation | `agents/creative/` — Creative Agent V2 and image pipeline built and validated |
 | Video | `/api/ai/video` | 🔴 Legacy | `legacy/agents/video/index.js` | `agents/video/` — not yet built |
 | Ads | `/api/ads/generate` | 🟢 Canonical | None — removed after Sprint E validation | `agents/ads/` — Ads Agent V2 built and validated |
-| Analytics | `/api/ai/analytics` | 🔴 Legacy | (not yet implemented) | `agents/analytics/` — not yet built |
+| Analytics | `/api/analytics/generate` | 🟢 Canonical | None — no pre-canonical implementation existed | `agents/analytics/` — Analytics Agent V2 built and validated |
 
 ---
 
@@ -42,8 +42,8 @@ Status table above.
 | Marketing Input Guard | `app/lib/ai/input-guard/` | ✅ Built + smoke-tested |
 | Brief Builder | `app/lib/ai/brief-builder/` | ✅ Built + smoke-tested |
 | Quality Layer | `app/lib/ai/quality/` | ✅ Built + smoke-tested |
-| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research, SEO, Content, Creative, and Ads canonical |
-| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research/SEO/Content/Creative/Ads validated |
+| Agents | `app/lib/ai/agents/` | 🟡 Per-module migration — Research, SEO, Content, Creative, Ads, and Analytics canonical |
+| Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + Research/SEO/Content/Creative/Ads/Analytics validated |
 
 ---
 
