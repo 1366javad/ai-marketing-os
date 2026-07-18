@@ -253,10 +253,11 @@ This ADR does not decide:
 - Knowledge Slice ranking or token budgets
 - Phase 2 implementation sprints
 
-## Required Follow-up Decisions
+## Required Implementation Contracts
 
 All unresolved items remain Future Design Notes under the frozen conceptual
-model. Before implementation, follow-up ADRs must define at least:
+model. Before implementation, the frozen Phase 2 Knowledge Engine Design
+Package must define at least:
 
 1. Knowledge identity, scope, provenance, version, validity, and conflict
    contracts.
@@ -270,4 +271,5 @@ model. Before implementation, follow-up ADRs must define at least:
 ## Approval Gate
 
 This ADR is **Accepted**. Phase 2 application implementation remains gated by
-the required follow-up decisions and an approved Phase 2 roadmap.
+the frozen Phase 2 Knowledge Engine Design Package, including its implementation
+contracts and execution roadmap.
