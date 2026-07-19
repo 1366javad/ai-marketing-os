@@ -55,7 +55,7 @@ Status table above.
 | P2-B | Source Ingestion and Normalization | Closed | Source registration, hashing, deduplication, four deterministic normalizers, processing state, retry, safe observability, real-source integration, automated tests, lint, and production build passed |
 | P2-C | Extraction, Synthesis, and Conflict Detection | Closed | Provider-backed extraction, exact evidence, deterministic identity/confidence, agreement synthesis, explicit conflict gating, review queue, real-provider validation, automated tests, lint, and production build passed |
 | P2-D | Validation, Approval, and Versioning | Closed | Authorized approval/revocation, validation and conflict gates, append-only versioning, supersession, rejection, expiry/revocation invisibility, history, evidence, audit, database integration, automated tests, lint, and production build passed |
-| P2-E | Knowledge Slice | Not Started | Blocked until P2-D closure |
+| P2-E | Knowledge Slice | Closed | Read-only bounded slices, exact module allowlists, scope/validity/status/version/conflict filtering, deterministic ranking, protected constraints/facts, provenance, diagnostics, RLS integration, automated tests, lint, and production build passed |
 | P2-F | Canonical Runtime Integration | Not Started | Blocked until P2-E closure |
 | P2-G | Candidate Updates and Phase 2 Closure | Not Started | Blocked until P2-F closure |
 
@@ -89,6 +89,16 @@ active version; conflicts blocked the complete canonical identity until human
 resolution. Rejection, expiry, and revocation remained absent from the current
 runtime-visible projection, and every successful state transition produced
 append-only audit evidence. Transactional validation fixtures were rolled back.
+
+P2-E validation used the designated Supabase Development project and the
+canonical KnowledgeService boundary. Only approved, current, valid, in-scope,
+allowed-domain, conflict-free knowledge appeared. RLS prevented cross-business
+inputs; candidates, superseded, expired, revoked, conflicted, and mismatched
+records remained invisible. Deterministic selection enforced the hard 50-item
+maximum while preserving constraints and approved facts under truncation.
+Every item retained source provenance, all exclusion diagnostics were explicit,
+and repeated Slice reads produced no durable mutation. Transactional fixtures
+were rolled back after validation.
 
 ---
 

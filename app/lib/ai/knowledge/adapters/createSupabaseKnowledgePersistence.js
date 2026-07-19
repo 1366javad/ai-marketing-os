@@ -359,6 +359,34 @@ function createSupabaseKnowledgePersistence(supabase) {
       if (error) throw error;
       return attachVersionEvidence(supabase, data || []);
     },
+    async loadKnowledgeSliceInputs(businessId) {
+      const [versionsResult, evidenceResult, conflictsResult, candidatesResult] = await Promise.all([
+        supabase.from(TABLES.versions).select("*").eq("business_id", businessId),
+        supabase
+          .from(TABLES.versionEvidence)
+          .select("version_id, source_id, excerpt_hash")
+          .eq("business_id", businessId),
+        supabase
+          .from(TABLES.conflicts)
+          .select("id, identity_key, status")
+          .eq("business_id", businessId)
+          .eq("status", "open"),
+        supabase
+          .from(TABLES.candidates)
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId)
+          .in("status", ["candidate", "needs_review"]),
+      ]);
+      for (const result of [versionsResult, evidenceResult, conflictsResult, candidatesResult]) {
+        if (result.error) throw result.error;
+      }
+      return {
+        versions: versionsResult.data || [],
+        evidence: evidenceResult.data || [],
+        conflicts: conflictsResult.data || [],
+        unapprovedCount: candidatesResult.count || 0,
+      };
+    },
     insertSource: (record) => insertOne(supabase, TABLES.sources, record),
     insertNormalization: (record) =>
       insertOne(supabase, TABLES.normalizations, record),

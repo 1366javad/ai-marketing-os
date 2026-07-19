@@ -6,6 +6,7 @@ function createPersistence() {
   const conflicts = new Map();
   const versions = [];
   const audit = [];
+  let sliceReads = 0;
   let sequence = 0;
 
   function authorize(actorId, allowReviewer = true) {
@@ -26,6 +27,11 @@ function createPersistence() {
     conflicts,
     versions,
     audit,
+    get sliceReads() { return sliceReads; },
+    async loadKnowledgeSliceInputs() {
+      sliceReads += 1;
+      return { versions: [], evidence: [], conflicts: [], unapprovedCount: 0 };
+    },
     async getCandidateForPromotion(businessId, candidateId) {
       const candidate = candidates.get(candidateId);
       if (!candidate || candidate.business_id !== businessId) return null;
@@ -200,7 +206,7 @@ async function expectReject(action, pattern) {
     "knowledge_conflict_resolved",
     "business_knowledge_revoked",
   ]);
-  assert.equal(typeof service.getKnowledgeSlice, "undefined");
+  assert.equal(persistence.sliceReads, 0);
   console.log("P2-D versioning smoketest passed");
 })().catch((error) => {
   console.error(error);
