@@ -16,7 +16,13 @@ export async function POST(request, { params }) {
       language: body.language,
       correlationId: request.headers.get("x-correlation-id") || undefined,
     });
-    return Response.json({ normalization });
+    const extraction = await service.extractCandidateClaims({
+      businessId: body.businessId,
+      sourceId: id,
+      actorId: user.id,
+      correlationId: request.headers.get("x-correlation-id") || undefined,
+    });
+    return Response.json({ normalization, extraction });
   } catch (error) {
     const status = error instanceof TypeError ? 400 : error?.message === "knowledge source not found" ? 404 : 500;
     console.error("Knowledge source processing failed:", error?.message);

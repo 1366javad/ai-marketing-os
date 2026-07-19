@@ -2,13 +2,21 @@ const { KNOWLEDGE_DOMAINS, SOURCE_AUTHORITIES, SOURCE_KINDS } = require("./contr
 const { buildKnowledgeIdentity } = require("./versions/buildKnowledgeIdentity");
 const { createSupabaseKnowledgePersistence } = require("./adapters/createSupabaseKnowledgePersistence");
 const { createSourceService } = require("./sources/createSourceService");
+const { createExtractionService } = require("./extraction/createExtractionService");
 
 // This is the only public entry point for the bounded Knowledge capability.
 // Lifecycle operations are added by their owning sprints; persistence adapters
 // deliberately remain internal to app/lib/ai/knowledge.
-function createKnowledgeService({ supabase, persistence, logger, clock }) {
+function createKnowledgeService({ supabase, persistence, logger, clock, provider }) {
   const knowledgePersistence = persistence || createSupabaseKnowledgePersistence(supabase);
-  return createSourceService({ persistence: knowledgePersistence, logger, clock });
+  return Object.freeze({
+    ...createSourceService({ persistence: knowledgePersistence, logger, clock }),
+    ...createExtractionService({
+      persistence: knowledgePersistence,
+      provider,
+      logger,
+    }),
+  });
 }
 
 module.exports = Object.freeze({

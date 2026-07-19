@@ -130,6 +130,117 @@ function createSupabaseKnowledgePersistence(supabase) {
       if (error) throw error;
       return data || [];
     },
+    async persistExtractedCandidate(record) {
+      const { data, error } = await supabase.rpc("persist_knowledge_candidate", {
+        p_business_id: record.businessId,
+        p_source_id: record.sourceId,
+        p_identity_key: record.identityKey,
+        p_scope_key: record.scopeKey,
+        p_domain: record.domain,
+        p_subject_key: record.subjectKey,
+        p_claim_key: record.claimKey,
+        p_value: record.value,
+        p_value_hash: record.valueHash,
+        p_scope: record.scope,
+        p_valid_from: record.validity.validFrom,
+        p_valid_until: record.validity.validUntil,
+        p_extractor_version: record.extractorVersion,
+        p_evidence: record.evidence,
+        p_actor_id: record.actorId,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+    async loadSynthesisCandidates(businessId, identityKeys) {
+      let candidateQuery = supabase
+        .from(TABLES.candidates)
+        .select("*")
+        .eq("business_id", businessId)
+        .in("status", ["candidate", "needs_review"]);
+      if (identityKeys?.length) candidateQuery = candidateQuery.in("identity_key", identityKeys);
+      const { data: candidates, error: candidateError } = await candidateQuery;
+      if (candidateError) throw candidateError;
+      if (!candidates?.length) return [];
+      const candidateIds = candidates.map((candidate) => candidate.id);
+      const { data: evidence, error: evidenceError } = await supabase
+        .from(TABLES.candidateEvidence)
+        .select("candidate_id, source_id, section_ordinal, excerpt_hash")
+        .eq("business_id", businessId)
+        .in("candidate_id", candidateIds);
+      if (evidenceError) throw evidenceError;
+      const sourceIds = [...new Set((evidence || []).map((item) => item.source_id))];
+      const { data: sources, error: sourceError } = await supabase
+        .from(TABLES.sources)
+        .select("id, authority")
+        .eq("business_id", businessId)
+        .in("id", sourceIds);
+      if (sourceError) throw sourceError;
+      const authorityBySource = new Map((sources || []).map((source) => [source.id, source.authority]));
+      return candidates.map((candidate) => ({
+        id: candidate.id,
+        identityKey: candidate.identity_key,
+        valueHash: candidate.value_hash,
+        evidence: (evidence || [])
+          .filter((item) => item.candidate_id === candidate.id)
+          .map((item) => ({
+            sourceId: item.source_id,
+            sectionOrdinal: item.section_ordinal,
+            excerptHash: item.excerpt_hash,
+            authority: authorityBySource.get(item.source_id) || "unverified",
+          })),
+      }));
+    },
+    async saveSynthesisResult(record) {
+      const { data, error } = await supabase.rpc("save_knowledge_synthesis", {
+        p_business_id: record.businessId,
+        p_identity_key: record.identityKey,
+        p_updates: record.updates,
+        p_conflict: record.conflict,
+        p_actor_id: record.actorId,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    async loadReviewCandidates(businessId, identityKeys) {
+      let query = supabase
+        .from(TABLES.candidates)
+        .select("*")
+        .eq("business_id", businessId)
+        .in("status", ["candidate", "needs_review"])
+        .order("created_at", { ascending: false });
+      if (identityKeys?.length) query = query.in("identity_key", identityKeys);
+      const { data: candidates, error } = await query;
+      if (error) throw error;
+      if (!candidates?.length) return [];
+      const { data: evidence, error: evidenceError } = await supabase
+        .from(TABLES.candidateEvidence)
+        .select("candidate_id, source_id, section_ordinal, excerpt_hash")
+        .eq("business_id", businessId)
+        .in("candidate_id", candidates.map((candidate) => candidate.id));
+      if (evidenceError) throw evidenceError;
+      return candidates.map((candidate) => ({
+        ...candidate,
+        evidence: (evidence || [])
+          .filter((item) => item.candidate_id === candidate.id)
+          .map((item) => ({
+            sourceId: item.source_id,
+            sectionOrdinal: item.section_ordinal,
+            excerptHash: item.excerpt_hash,
+          })),
+      }));
+    },
+    async loadOpenConflicts(businessId) {
+      const { data, error } = await supabase
+        .from(TABLES.conflicts)
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("status", "open")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
     insertSource: (record) => insertOne(supabase, TABLES.sources, record),
     insertNormalization: (record) =>
       insertOne(supabase, TABLES.normalizations, record),

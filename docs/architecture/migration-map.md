@@ -53,7 +53,7 @@ Status table above.
 |---|---|---|---|
 | P2-A | Durable Knowledge Foundation | Closed | Development migration applied; schema, RLS, cross-business isolation, append-only protection, ownership, automated tests, lint, and production build passed |
 | P2-B | Source Ingestion and Normalization | Closed | Source registration, hashing, deduplication, four deterministic normalizers, processing state, retry, safe observability, real-source integration, automated tests, lint, and production build passed |
-| P2-C | Extraction, Synthesis, and Conflict Detection | Not Started | Blocked until P2-B closure |
+| P2-C | Extraction, Synthesis, and Conflict Detection | Closed | Provider-backed extraction, exact evidence, deterministic identity/confidence, agreement synthesis, explicit conflict gating, review queue, real-provider validation, automated tests, lint, and production build passed |
 | P2-D | Validation, Approval, and Versioning | Not Started | Blocked until P2-C closure |
 | P2-E | Knowledge Slice | Not Started | Blocked until P2-D closure |
 | P2-F | Canonical Runtime Integration | Not Started | Blocked until P2-E closure |
@@ -72,6 +72,14 @@ changed content created a new snapshot, retryable failure returned safely to
 `registered`, and successful normalization reached the `normalized` ready
 state. Transactional fixtures confirmed that P2-B created no Candidate Claims,
 Knowledge Versions, approved knowledge, or Runtime-visible Knowledge Slice.
+
+P2-C validation used two real OpenAI extractions plus deterministic synthesis,
+and the designated Supabase Development project. Agreeing sources collapsed to
+one Candidate Claim while preserving both evidence references. Materially
+different values created one open conflict and forced every affected Candidate
+to `needs_review`. Direct authenticated writes and forged confidence values
+were rejected. No approval, Knowledge Version, Knowledge Slice, or Runtime
+visibility was created.
 
 ---
 
