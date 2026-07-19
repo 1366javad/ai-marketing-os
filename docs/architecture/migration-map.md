@@ -52,7 +52,7 @@ Status table above.
 | Sprint | Capability | Status | Validation |
 |---|---|---|---|
 | P2-A | Durable Knowledge Foundation | Closed | Development migration applied; schema, RLS, cross-business isolation, append-only protection, ownership, automated tests, lint, and production build passed |
-| P2-B | Source Ingestion and Normalization | In Progress | Entry Criteria satisfied; implementation started after P2-A closure |
+| P2-B | Source Ingestion and Normalization | Closed | Source registration, hashing, deduplication, four deterministic normalizers, processing state, retry, safe observability, real-source integration, automated tests, lint, and production build passed |
 | P2-C | Extraction, Synthesis, and Conflict Detection | Not Started | Blocked until P2-B closure |
 | P2-D | Validation, Approval, and Versioning | Not Started | Blocked until P2-C closure |
 | P2-E | Knowledge Slice | Not Started | Blocked until P2-D closure |
@@ -65,6 +65,13 @@ isolation, and immutable-history protections were verified with transactional
 fixtures that were rolled back after validation. The destructive foundation
 rollback was intentionally not executed against the existing development
 database, per the approved validation exception.
+
+P2-B validation used a real website snapshot and the designated Supabase
+Development project. Duplicate content reused the immutable source identity,
+changed content created a new snapshot, retryable failure returned safely to
+`registered`, and successful normalization reached the `normalized` ready
+state. Transactional fixtures confirmed that P2-B created no Candidate Claims,
+Knowledge Versions, approved knowledge, or Runtime-visible Knowledge Slice.
 
 ---
 
