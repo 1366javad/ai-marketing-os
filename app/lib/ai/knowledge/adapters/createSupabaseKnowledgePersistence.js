@@ -31,6 +31,25 @@ function insertOne(supabase, table, record) {
   })();
 }
 
+async function attachVersionEvidence(supabase, versions) {
+  if (!versions?.length) return [];
+  const { data: evidence, error } = await supabase
+    .from(TABLES.versionEvidence)
+    .select("version_id, source_id, excerpt_hash")
+    .in("version_id", versions.map((version) => version.id));
+  if (error) throw error;
+  const supersededIds = new Set(versions.map((version) => version.supersedes).filter(Boolean));
+  return versions.map((version) => ({
+    ...version,
+    status: version.status === "approved" && supersededIds.has(version.id)
+      ? "superseded"
+      : version.status,
+    evidence: (evidence || [])
+      .filter((item) => item.version_id === version.id)
+      .map((item) => ({ sourceId: item.source_id, excerptHash: item.excerpt_hash })),
+  }));
+}
+
 function createSupabaseKnowledgePersistence(supabase) {
   assertSupabaseClient(supabase);
 
@@ -240,6 +259,105 @@ function createSupabaseKnowledgePersistence(supabase) {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
+    },
+    async getCandidateForPromotion(businessId, candidateId) {
+      const { data: candidate, error } = await supabase
+        .from(TABLES.candidates)
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("id", candidateId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!candidate) return null;
+      const [{ data: evidence, error: evidenceError }, { data: conflicts, error: conflictError }] = await Promise.all([
+        supabase
+          .from(TABLES.candidateEvidence)
+          .select("source_id, section_ordinal, excerpt_hash")
+          .eq("business_id", businessId)
+          .eq("candidate_id", candidateId),
+        supabase
+          .from(TABLES.conflicts)
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("status", "open")
+          .eq("identity_key", candidate.identity_key),
+      ]);
+      if (evidenceError) throw evidenceError;
+      if (conflictError) throw conflictError;
+      return {
+        ...candidate,
+        evidence: evidence || [],
+        validity: { validFrom: candidate.valid_from || null, validUntil: candidate.valid_until || null },
+        openConflict: Boolean(conflicts?.length),
+      };
+    },
+    async approveCandidate(record) {
+      const { data, error } = await supabase.rpc("approve_knowledge_candidate", {
+        p_business_id: record.businessId,
+        p_candidate_id: record.candidateId,
+        p_actor_id: record.actorId,
+        p_reason: record.reason,
+        p_valid_from: record.validFrom,
+        p_valid_until: record.validUntil,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      const version = Array.isArray(data) ? data[0] : data;
+      return (await attachVersionEvidence(supabase, [version]))[0];
+    },
+    async rejectCandidate(record) {
+      const { data, error } = await supabase.rpc("reject_knowledge_candidate", {
+        p_business_id: record.businessId,
+        p_candidate_id: record.candidateId,
+        p_actor_id: record.actorId,
+        p_reason: record.reason,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+    async resolveConflict(record) {
+      const { data, error } = await supabase.rpc("resolve_knowledge_conflict", {
+        p_business_id: record.businessId,
+        p_conflict_id: record.conflictId,
+        p_selected_candidate_id: record.selectedCandidateId,
+        p_actor_id: record.actorId,
+        p_reason: record.reason,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+    async revokeVersion(record) {
+      const { data, error } = await supabase.rpc("revoke_knowledge_version", {
+        p_business_id: record.businessId,
+        p_version_id: record.versionId,
+        p_actor_id: record.actorId,
+        p_reason: record.reason,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      const version = Array.isArray(data) ? data[0] : data;
+      return (await attachVersionEvidence(supabase, [version]))[0];
+    },
+    async getVersionHistory(businessId, identityKey) {
+      const { data, error } = await supabase
+        .from(TABLES.versions)
+        .select("*")
+        .eq("business_id", businessId)
+        .eq("identity_key", identityKey)
+        .order("version", { ascending: false });
+      if (error) throw error;
+      return attachVersionEvidence(supabase, data || []);
+    },
+    async listKnowledgeVersions(businessId) {
+      const { data, error } = await supabase
+        .from(TABLES.versions)
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return attachVersionEvidence(supabase, data || []);
     },
     insertSource: (record) => insertOne(supabase, TABLES.sources, record),
     insertNormalization: (record) =>

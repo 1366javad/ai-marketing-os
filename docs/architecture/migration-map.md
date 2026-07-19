@@ -54,7 +54,7 @@ Status table above.
 | P2-A | Durable Knowledge Foundation | Closed | Development migration applied; schema, RLS, cross-business isolation, append-only protection, ownership, automated tests, lint, and production build passed |
 | P2-B | Source Ingestion and Normalization | Closed | Source registration, hashing, deduplication, four deterministic normalizers, processing state, retry, safe observability, real-source integration, automated tests, lint, and production build passed |
 | P2-C | Extraction, Synthesis, and Conflict Detection | Closed | Provider-backed extraction, exact evidence, deterministic identity/confidence, agreement synthesis, explicit conflict gating, review queue, real-provider validation, automated tests, lint, and production build passed |
-| P2-D | Validation, Approval, and Versioning | Not Started | Blocked until P2-C closure |
+| P2-D | Validation, Approval, and Versioning | Closed | Authorized approval/revocation, validation and conflict gates, append-only versioning, supersession, rejection, expiry/revocation invisibility, history, evidence, audit, database integration, automated tests, lint, and production build passed |
 | P2-E | Knowledge Slice | Not Started | Blocked until P2-D closure |
 | P2-F | Canonical Runtime Integration | Not Started | Blocked until P2-E closure |
 | P2-G | Candidate Updates and Phase 2 Closure | Not Started | Blocked until P2-F closure |
@@ -80,6 +80,15 @@ different values created one open conflict and forced every affected Candidate
 to `needs_review`. Direct authenticated writes and forged confidence values
 were rejected. No approval, Knowledge Version, Knowledge Slice, or Runtime
 visibility was created.
+
+P2-D validation used the designated Supabase Development project. Human role
+boundaries were verified for reviewer approval and owner/admin revocation;
+non-members and direct authenticated writes were rejected. Approval created
+immutable, evidence-backed versions; supersession retained history with one
+active version; conflicts blocked the complete canonical identity until human
+resolution. Rejection, expiry, and revocation remained absent from the current
+runtime-visible projection, and every successful state transition produced
+append-only audit evidence. Transactional validation fixtures were rolled back.
 
 ---
 
