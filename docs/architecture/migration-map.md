@@ -57,7 +57,7 @@ Status table above.
 | P2-D | Validation, Approval, and Versioning | Closed | Authorized approval/revocation, validation and conflict gates, append-only versioning, supersession, rejection, expiry/revocation invisibility, history, evidence, audit, database integration, automated tests, lint, and production build passed |
 | P2-E | Knowledge Slice | Closed | Read-only bounded slices, exact module allowlists, scope/validity/status/version/conflict filtering, deterministic ranking, protected constraints/facts, provenance, diagnostics, RLS integration, automated tests, lint, and production build passed |
 | P2-F | Canonical Runtime Integration | Closed | Orchestrator-owned read-only Knowledge retrieval, disabled-by-default rollout, bounded Agent consumption, separate Knowledge/Campaign provenance, reduced-context diagnostics, real-provider integration, full regression, lint, and production build passed |
-| P2-G | Candidate Updates and Phase 2 Closure | Not Started | Blocked until P2-F closure |
+| P2-G | Candidate Updates and Phase 2 Closure | Closed | Campaign Event, Analytics Observation, and human-note feedback create review-only Candidate Updates; guarded review transitions, isolation, audit, reversible rollout, real-provider lifecycle, full regression, lint, and production build passed |
 
 P2-A database validation used the designated Supabase Development project.
 The forward migration was applied atomically. Schema, RLS, two-user/two-business
@@ -110,6 +110,19 @@ missing scope, empty knowledge, and retrieval failure produce explicit reduced
 context diagnostics without fabricating context or blocking optional execution.
 A real OpenAI provider run passed the complete canonical pipeline, and runtime
 validation performed no durable Knowledge mutation.
+
+P2-G completed the safe Runtime feedback boundary without automatic learning.
+Campaign Events, Analytics Observations, and human notes create isolated,
+provenance-bearing Candidate Updates only. Direct mutation and cross-business
+access were rejected; human review is required before an accepted update can
+re-enter the existing validation queue, and acceptance creates neither a
+Candidate Claim nor a Knowledge Version. The development database validation
+verified every transition and audit event, plus a transactional rollback that
+removed P2-G behavior without deleting knowledge history. The complete
+source-to-extraction-to-approved-slice-to-real-provider-Runtime-to-candidate
+feedback lifecycle, all 26 automated smoke suites, lint, and production build
+passed. All sixteen Phase 2 Definition of Complete criteria are verified;
+Phase 2 is closed.
 
 ---
 

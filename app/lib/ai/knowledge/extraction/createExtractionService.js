@@ -5,6 +5,7 @@ const { emitKnowledgeLifecycleEvent } = require("../observability/emitKnowledgeL
 const { synthesizeCandidateGroups } = require("../synthesis/synthesizeCandidateGroups");
 const { buildKnowledgeExtractionPrompt } = require("./buildKnowledgeExtractionPrompt");
 const { validateExtractedClaims } = require("./validateExtractedClaims");
+const { mapCandidateUpdate } = require("../candidates/createCandidateUpdateService");
 
 const EXTRACTOR_VERSION = "knowledge-extractor-v1";
 
@@ -118,11 +119,16 @@ function createExtractionService({ persistence, provider = runTextProvider, logg
   }
 
   async function listKnowledgeReviewQueue(businessId) {
-    const [candidates, conflicts] = await Promise.all([
+    const [candidates, conflicts, candidateUpdates] = await Promise.all([
       persistence.loadReviewCandidates(required(businessId, "businessId")),
       persistence.loadOpenConflicts(businessId),
+      persistence.loadCandidateUpdates(businessId),
     ]);
-    return { candidates: candidates.map(mapCandidate), conflicts };
+    return {
+      candidates: candidates.map(mapCandidate),
+      conflicts,
+      candidateUpdates: candidateUpdates.map(mapCandidateUpdate),
+    };
   }
 
   return Object.freeze({

@@ -387,6 +387,43 @@ function createSupabaseKnowledgePersistence(supabase) {
         unapprovedCount: candidatesResult.count || 0,
       };
     },
+    async createCandidateUpdate(record) {
+      const { data, error } = await supabase.rpc("create_knowledge_candidate_update", {
+        p_business_id: record.businessId,
+        p_proposed_domain: record.proposedDomain,
+        p_proposed_identity_key: record.proposedIdentityKey,
+        p_proposed_value: record.proposedValue,
+        p_source_kind: record.sourceKind,
+        p_source_reference_id: record.sourceReferenceId,
+        p_evidence: record.evidence,
+        p_actor_id: record.actorId,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+    async reviewCandidateUpdate(record) {
+      const { data, error } = await supabase.rpc("review_knowledge_candidate_update", {
+        p_business_id: record.businessId,
+        p_candidate_update_id: record.candidateUpdateId,
+        p_action: record.action,
+        p_actor_id: record.actorId,
+        p_reason: record.reason,
+        p_correlation_id: record.correlationId,
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+    async loadCandidateUpdates(businessId) {
+      const { data, error } = await supabase
+        .from(TABLES.candidateUpdates)
+        .select("*")
+        .eq("business_id", businessId)
+        .in("status", ["candidate", "under_review", "accepted_for_validation"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
     insertSource: (record) => insertOne(supabase, TABLES.sources, record),
     insertNormalization: (record) =>
       insertOne(supabase, TABLES.normalizations, record),

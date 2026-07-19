@@ -5,6 +5,7 @@ const { createSourceService } = require("./sources/createSourceService");
 const { createExtractionService } = require("./extraction/createExtractionService");
 const { createVersionService } = require("./versions/createVersionService");
 const { createKnowledgeSliceService } = require("./slicing/createKnowledgeSliceService");
+const { createCandidateUpdateService } = require("./candidates/createCandidateUpdateService");
 
 // This is the only public entry point for the bounded Knowledge capability.
 // Lifecycle operations are added by their owning sprints; persistence adapters
@@ -20,6 +21,7 @@ function createKnowledgeService({ supabase, persistence, logger, clock, provider
     }),
     ...createVersionService({ persistence: knowledgePersistence }),
     ...createKnowledgeSliceService({ persistence: knowledgePersistence, clock }),
+    ...createCandidateUpdateService({ persistence: knowledgePersistence, logger }),
   });
 }
 

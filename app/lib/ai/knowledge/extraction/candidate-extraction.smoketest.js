@@ -101,6 +101,9 @@ function createPersistence() {
     async loadOpenConflicts(businessId) {
       return [...conflicts.values()].filter((conflict) => conflict.business_id === businessId && conflict.status === "open");
     },
+    async loadCandidateUpdates() {
+      return [];
+    },
     insertVersion() { forbiddenWrites.push("version"); },
     getKnowledgeSlice() { forbiddenWrites.push("slice"); },
   };

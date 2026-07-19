@@ -3,6 +3,7 @@ function emitKnowledgeLifecycleEvent(logger, event) {
     correlationId: event.correlationId || null,
     businessId: event.businessId,
     sourceId: event.sourceId || null,
+    candidateId: event.candidateId || null,
     stage: event.stage,
     processorVersion: event.processorVersion || null,
     inputCount: Number(event.inputCount || 0),
