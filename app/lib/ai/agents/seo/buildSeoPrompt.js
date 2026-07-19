@@ -166,6 +166,9 @@ function buildSeoPrompt({ brief, executionPlan }) {
     relevantEvents.length
       ? `\nApproved research memory:\n${formatRelevantEvents(relevantEvents)}`
       : "\nApproved research memory: none yet.",
+    brief.knowledgeEnabled
+      ? `\nApproved durable business knowledge:\n${brief.knowledgeContext}`
+      : "",
     "",
     "Task-specific focus areas:",
     ...task.focus.map((item) => `- ${item}`),

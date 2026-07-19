@@ -103,6 +103,7 @@ export async function POST(request) {
         contextDbAdapter: createContextDbAdapter(campaign, body),
         eventsDbAdapter: createSupabaseEventsAdapter(supabase),
       },
+      knowledgeOptions: createKnowledgeRuntimeOptions({ supabase, body, campaign }),
       briefExtensions: {
         normalizedPrompt: body.prompt?.trim() || "",
         budget: body.budget?.trim() || "",
@@ -169,6 +170,7 @@ export async function POST(request) {
       approvalStatus: quality.approvalRequired ? "pending" : "auto_saved",
       blocked: riskGate.blocked,
       publishable: riskGate.publishable,
+      knowledgeDiagnostics: pipeline.knowledgeDiagnostics,
       ...(contextSlice
         ? { contextVersion: contextSlice.contextVersion }
         : {}),
@@ -199,6 +201,17 @@ export async function POST(request) {
       },
     );
   }
+}
+
+function createKnowledgeRuntimeOptions({ supabase, body, campaign }) {
+  return {
+    supabase,
+    businessId: body.businessId || campaign?.business_id || null,
+    scope: {
+      brandId: body.brandId || campaign?.brand_id || undefined,
+      productId: body.productId || campaign?.product_id || undefined,
+    },
+  };
 }
 
 function normalizeAdsTask(task) {

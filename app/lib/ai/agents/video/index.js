@@ -73,6 +73,9 @@ function buildVideoPlanningPrompt({ brief, task }) {
           )
           .join("\n")}`
       : "Approved memory: none.",
+    brief.knowledgeEnabled
+      ? `Approved durable business knowledge:\n${brief.knowledgeContext}`
+      : "",
     "",
     isStoryboard
       ? "Create 5-7 production-ready visual scenes. Emphasize composition, action, transitions, on-screen text, voiceover, and duration."
@@ -232,6 +235,7 @@ function clean(value) {
 
 module.exports = {
   ACTIVE_VIDEO_TASKS,
+  buildVideoPlanningPrompt,
   formatVideoPlanningText,
   normalizeVideoPlanningOutput,
   normalizeVideoTask,

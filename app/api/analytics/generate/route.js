@@ -96,6 +96,7 @@ export async function POST(request) {
         contextDbAdapter: createContextDbAdapter(campaign),
         eventsDbAdapter: createSupabaseEventsAdapter(supabase),
       },
+      knowledgeOptions: createKnowledgeRuntimeOptions({ supabase, body, campaign }),
       memoryOptions: createAnalyticsMemoryOptions({
         supabase,
         user,
@@ -155,6 +156,7 @@ export async function POST(request) {
       executionPlan,
       quality,
       riskGate,
+      knowledgeDiagnostics: pipeline.knowledgeDiagnostics,
       contextVersion: contextSlice?.contextVersion,
       memory: memoryWrite.memory,
     });
@@ -174,6 +176,17 @@ export async function POST(request) {
       { status: getAiErrorStatus(error) },
     );
   }
+}
+
+function createKnowledgeRuntimeOptions({ supabase, body, campaign }) {
+  return {
+    supabase,
+    businessId: body.businessId || campaign?.business_id || null,
+    scope: {
+      brandId: body.brandId || campaign?.brand_id || undefined,
+      productId: body.productId || campaign?.product_id || undefined,
+    },
+  };
 }
 
 function createContextDbAdapter(campaign) {

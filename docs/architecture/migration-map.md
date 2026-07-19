@@ -56,7 +56,7 @@ Status table above.
 | P2-C | Extraction, Synthesis, and Conflict Detection | Closed | Provider-backed extraction, exact evidence, deterministic identity/confidence, agreement synthesis, explicit conflict gating, review queue, real-provider validation, automated tests, lint, and production build passed |
 | P2-D | Validation, Approval, and Versioning | Closed | Authorized approval/revocation, validation and conflict gates, append-only versioning, supersession, rejection, expiry/revocation invisibility, history, evidence, audit, database integration, automated tests, lint, and production build passed |
 | P2-E | Knowledge Slice | Closed | Read-only bounded slices, exact module allowlists, scope/validity/status/version/conflict filtering, deterministic ranking, protected constraints/facts, provenance, diagnostics, RLS integration, automated tests, lint, and production build passed |
-| P2-F | Canonical Runtime Integration | Not Started | Blocked until P2-E closure |
+| P2-F | Canonical Runtime Integration | Closed | Orchestrator-owned read-only Knowledge retrieval, disabled-by-default rollout, bounded Agent consumption, separate Knowledge/Campaign provenance, reduced-context diagnostics, real-provider integration, full regression, lint, and production build passed |
 | P2-G | Candidate Updates and Phase 2 Closure | Not Started | Blocked until P2-F closure |
 
 P2-A database validation used the designated Supabase Development project.
@@ -99,6 +99,17 @@ maximum while preserving constraints and approved facts under truncation.
 Every item retained source provenance, all exclusion diagnostics were explicit,
 and repeated Slice reads produced no durable mutation. Transactional fixtures
 were rolled back after validation.
+
+P2-F connected the read-only Knowledge Slice to the canonical runtime under
+exclusive Orchestrator ownership. All seven Phase 1 Agent capabilities consume
+only their module-allowed durable domains through the approved Brief; Routes
+and Agents retain no direct Knowledge dependency. Campaign and Knowledge
+provenance remain separately traceable through execution, Brief, diagnostics,
+and Campaign Memory metadata. The rollout flag remains disabled by default;
+missing scope, empty knowledge, and retrieval failure produce explicit reduced
+context diagnostics without fabricating context or blocking optional execution.
+A real OpenAI provider run passed the complete canonical pipeline, and runtime
+validation performed no durable Knowledge mutation.
 
 ---
 

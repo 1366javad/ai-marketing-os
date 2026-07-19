@@ -36,6 +36,9 @@ function buildAnalyticsPrompt({ brief, executionPlan }) {
     relevantEvents.length
       ? JSON.stringify(relevantEvents.map(toPromptEvent), null, 2)
       : "No approved campaign memory is available.",
+    brief.knowledgeEnabled
+      ? `\nApproved durable business knowledge:\n${brief.knowledgeContext}`
+      : "",
     "",
     "Requirements:",
     "- Base every finding on supplied context or memory.",

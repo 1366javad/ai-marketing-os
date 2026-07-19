@@ -120,6 +120,9 @@ function buildAdsPrompt({ brief, executionPlan }) {
     relevantEvents.length
       ? `\nApproved campaign memory:\n${formatRelevantEvents(relevantEvents)}`
       : "\nApproved campaign memory: none yet.",
+    brief.knowledgeEnabled
+      ? `\nApproved durable business knowledge:\n${brief.knowledgeContext}`
+      : "",
     "",
     "Task-specific focus:",
     ...task.focus.map((item) => `- ${item}`),

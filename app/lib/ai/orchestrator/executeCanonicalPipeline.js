@@ -21,6 +21,7 @@ const {
   toAnalyticsMemoryEvent,
 } = require("../agents/analytics");
 const { runVideoPlanning, toVideoMemoryEvent } = require("../agents/video");
+const { retrieveRuntimeKnowledgeSlice } = require("./retrieveRuntimeKnowledgeSlice");
 
 const AGENT_DEFINITIONS = Object.freeze({
   research: Object.freeze({
@@ -59,6 +60,7 @@ async function executeCanonicalPipeline(options = {}) {
     normalizedPrompt,
     executionPlan,
     contextOptions = {},
+    knowledgeOptions = {},
     briefExtensions = {},
     memoryOptions = {},
   } = options;
@@ -86,8 +88,20 @@ async function executeCanonicalPipeline(options = {}) {
       )
     : null;
 
+  const { knowledgeSlice, knowledgeDiagnostics } =
+    await retrieveRuntimeKnowledgeSlice({
+      executionPlan,
+      options: knowledgeOptions,
+    });
+
   const brief = {
-    ...buildBrief(normalizedPrompt, executionPlan, contextSlice),
+    ...buildBrief(
+      normalizedPrompt,
+      executionPlan,
+      contextSlice,
+      knowledgeSlice,
+      knowledgeDiagnostics,
+    ),
     requestedModule: executionPlan.module,
     normalizedTask: executionPlan.task,
     normalizedPrompt,
@@ -135,6 +149,11 @@ async function executeCanonicalPipeline(options = {}) {
           sourceEventIds: (contextSlice?.relevantEvents || [])
             .map((event) => event.id)
             .filter(Boolean),
+          knowledgeVersionIds: (knowledgeSlice?.items || [])
+            .map((item) => item.knowledgeId)
+            .filter(Boolean),
+          knowledgeSourceIds: [...new Set((knowledgeSlice?.items || [])
+            .flatMap((item) => item.sourceIds || []))],
         },
       },
     });
@@ -143,6 +162,8 @@ async function executeCanonicalPipeline(options = {}) {
   return {
     executionPlan,
     contextSlice,
+    knowledgeSlice,
+    knowledgeDiagnostics,
     brief,
     agentOutput,
     memoryEvent,

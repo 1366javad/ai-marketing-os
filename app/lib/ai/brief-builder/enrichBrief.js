@@ -29,7 +29,13 @@
  * @param {Object|null} params.contextSlice  - output of getCampaignContextSlice(), or null in Tool Mode
  * @returns {MarketingBrief}
  */
-function enrichBrief({ extractedSignals, executionPlan, contextSlice }) {
+function enrichBrief({
+  extractedSignals,
+  executionPlan,
+  contextSlice,
+  knowledgeSlice,
+  knowledgeDiagnostics,
+}) {
   const ctx = contextSlice ? contextSlice.context : {};
   const sig = extractedSignals || {};
   const plan = executionPlan || {};
@@ -75,9 +81,44 @@ function enrichBrief({ extractedSignals, executionPlan, contextSlice }) {
     // Confidence: how complete is this brief?
     // Base = signal confidence. Boost if context enriched key fields.
     confidence: computeConfidence(ctx, sig),
+
+    // Durable Business Knowledge and Campaign Memory remain separate inputs.
+    knowledgeEnabled: knowledgeDiagnostics?.enabled === true,
+    knowledgeItems: knowledgeSlice?.items || [],
+    knowledgeContext: formatKnowledgeContext(knowledgeSlice?.items || []),
+    knowledgeDiagnostics: knowledgeDiagnostics || {
+      enabled: false,
+      status: "disabled",
+      reduced: false,
+      reason: "rollout_disabled",
+    },
+    campaignProvenance: {
+      contextVersion: contextSlice?.contextVersion ?? null,
+      sourceEventIds: (contextSlice?.relevantEvents || [])
+        .map((event) => event.id)
+        .filter(Boolean),
+    },
+    knowledgeProvenance: {
+      generatedAt: knowledgeSlice?.generatedAt || null,
+      knowledgeIds: (knowledgeSlice?.items || []).map((item) => item.knowledgeId),
+      sourceIds: [...new Set((knowledgeSlice?.items || [])
+        .flatMap((item) => item.sourceIds || []))],
+    },
   };
 
   return brief;
+}
+
+function formatKnowledgeContext(items) {
+  if (!items.length) return "No approved business knowledge is available for this request.";
+  return items.map((item) => [
+    `- [${item.domain}] ${formatKnowledgeValue(item.value)}`,
+    `(knowledgeId=${item.knowledgeId}; version=${item.version}; sources=${item.sourceIds.join(",") || "none"})`,
+  ].join(" ")).join("\n");
+}
+
+function formatKnowledgeValue(value) {
+  return typeof value === "string" ? value : JSON.stringify(value);
 }
 
 /**

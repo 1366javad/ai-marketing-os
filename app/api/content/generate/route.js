@@ -111,6 +111,7 @@ export async function POST(request) {
         contextDbAdapter: createContextDbAdapter(campaign),
         eventsDbAdapter: createSupabaseEventsAdapter(supabase),
       },
+      knowledgeOptions: createKnowledgeRuntimeOptions({ supabase, body, campaign }),
       briefExtensions: { normalizedPrompt: userDirection },
       memoryOptions: createContentMemoryOptions({
         supabase,
@@ -176,6 +177,7 @@ export async function POST(request) {
       contentOutput,
       executionPlan,
       quality,
+      knowledgeDiagnostics: pipeline.knowledgeDiagnostics,
       memory: memoryWrite.memory,
     });
   } catch (error) {
@@ -203,6 +205,17 @@ export async function POST(request) {
       },
     );
   }
+}
+
+function createKnowledgeRuntimeOptions({ supabase, body, campaign }) {
+  return {
+    supabase,
+    businessId: body.businessId || campaign?.business_id || null,
+    scope: {
+      brandId: body.brandId || campaign?.brand_id || undefined,
+      productId: body.productId || campaign?.product_id || undefined,
+    },
+  };
 }
 
 function buildDefaultContentPrompt({ campaign, normalizedTask }) {

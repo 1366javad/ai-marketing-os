@@ -24,6 +24,8 @@ const forbiddenDirectCalls = [
   "runQualityChecks(",
   "writeMemoryEvent(",
   '.from("campaign_memory_events")',
+  "createKnowledgeService(",
+  "getKnowledgeSlice(",
 ];
 
 let passed = 0;
@@ -36,6 +38,9 @@ for (const file of routeFiles) {
   }
   if (!source.includes("executeCanonicalPipeline(")) {
     throw new Error(`${file} does not delegate to executeCanonicalPipeline().`);
+  }
+  if (!source.includes("knowledgeOptions:") || !source.includes("knowledgeDiagnostics:")) {
+    throw new Error(`${file} does not pass scope or surface Knowledge diagnostics.`);
   }
   passed += 1;
   console.log(`PASS: ${file} delegates canonical execution to OrchestratorService`);
@@ -56,6 +61,7 @@ const orchestratorSource = fs.readFileSync(
   "utf8",
 );
 for (const requiredCall of [
+  "retrieveRuntimeKnowledgeSlice(",
   "getCampaignContextSlice(",
   "buildBrief(",
   "agentDefinition.run(",
@@ -68,5 +74,27 @@ for (const requiredCall of [
 }
 passed += 1;
 console.log("PASS: OrchestratorService owns every canonical pipeline stage");
+
+const knowledgeRetrieverSource = fs.readFileSync(
+  path.resolve("app/lib/ai/orchestrator/retrieveRuntimeKnowledgeSlice.js"),
+  "utf8",
+);
+if (!knowledgeRetrieverSource.includes("service.getKnowledgeSlice(")) {
+  throw new Error("Orchestrator does not own Runtime Knowledge Slice retrieval.");
+}
+passed += 1;
+console.log("PASS: Orchestrator is the only Runtime caller of Knowledge Slice");
+
+const agentFiles = fs.readdirSync(path.resolve("app/lib/ai/agents"), { recursive: true })
+  .filter((file) => /\.js$/.test(file));
+const agentKnowledgeDependency = agentFiles.find((file) => {
+  const source = fs.readFileSync(path.resolve("app/lib/ai/agents", file), "utf8");
+  return source.includes("createKnowledgeService") || source.includes("getKnowledgeSlice(");
+});
+if (agentKnowledgeDependency) {
+  throw new Error(`Agent directly depends on Knowledge Engine: ${agentKnowledgeDependency}`);
+}
+passed += 1;
+console.log("PASS: Agents consume Knowledge only through the approved Brief");
 
 console.log(`\nOrchestrator ownership smoke: ${passed}/${passed} passed.`);

@@ -52,6 +52,9 @@ function buildContentPrompt({ brief, executionPlan }) {
     relevantEvents.length
       ? `Approved context signals:\n${formatRelevantEvents(relevantEvents)}`
       : "Approved context signals: none",
+    brief.knowledgeEnabled
+      ? `Approved durable business knowledge:\n${brief.knowledgeContext}`
+      : "",
     "",
     "Required content structure:",
     ...strategy.structure.map((item) => `- ${item}`),

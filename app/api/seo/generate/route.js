@@ -107,6 +107,7 @@ export async function POST(request) {
         contextDbAdapter: createContextDbAdapter(campaign),
         eventsDbAdapter: createSupabaseEventsAdapter(supabase),
       },
+      knowledgeOptions: createKnowledgeRuntimeOptions({ supabase, body, campaign }),
       memoryOptions: createSeoMemoryOptions({
         supabase,
         user,
@@ -178,6 +179,7 @@ export async function POST(request) {
       seoOutput,
       executionPlan,
       quality,
+      knowledgeDiagnostics: pipeline.knowledgeDiagnostics,
       memory: memoryWrite.memory,
     });
   } catch (error) {
@@ -205,6 +207,17 @@ export async function POST(request) {
       },
     );
   }
+}
+
+function createKnowledgeRuntimeOptions({ supabase, body, campaign }) {
+  return {
+    supabase,
+    businessId: body.businessId || campaign?.business_id || null,
+    scope: {
+      brandId: body.brandId || campaign?.brand_id || undefined,
+      productId: body.productId || campaign?.product_id || undefined,
+    },
+  };
 }
 
 function normalizeSeoTask(task) {

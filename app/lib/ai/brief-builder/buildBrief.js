@@ -15,7 +15,13 @@
 const { extractSignals } = require("./extractSignals");
 const { enrichBrief } = require("./enrichBrief");
 
-function buildBrief(normalizedPrompt, executionPlan, contextSlice = null) {
+function buildBrief(
+  normalizedPrompt,
+  executionPlan,
+  contextSlice = null,
+  knowledgeSlice = null,
+  knowledgeDiagnostics = null,
+) {
   if (!normalizedPrompt || typeof normalizedPrompt !== "string") {
     throw new Error(
       "buildBrief: normalizedPrompt is required. " +
@@ -27,7 +33,13 @@ function buildBrief(normalizedPrompt, executionPlan, contextSlice = null) {
   }
 
   const extractedSignals = extractSignals(normalizedPrompt);
-  return enrichBrief({ extractedSignals, executionPlan, contextSlice });
+  return enrichBrief({
+    extractedSignals,
+    executionPlan,
+    contextSlice,
+    knowledgeSlice,
+    knowledgeDiagnostics,
+  });
 }
 
 module.exports = { buildBrief };

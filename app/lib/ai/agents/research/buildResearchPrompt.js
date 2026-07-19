@@ -169,6 +169,9 @@ function buildResearchPrompt({ brief, executionPlan }) {
     relevantEvents.length
       ? `\nApproved context from campaign memory:\n${formatRelevantEvents(relevantEvents)}`
       : "\nApproved context: none yet.",
+    brief.knowledgeEnabled
+      ? `\nApproved durable business knowledge:\n${brief.knowledgeContext}`
+      : "",
     "",
     "Task-specific focus areas:",
     ...task.focus.map((item) => `- ${item}`),
