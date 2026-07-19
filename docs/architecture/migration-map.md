@@ -1,6 +1,6 @@
 # Migration Map
 
-**Last updated:** July 17, 2026
+**Last updated:** July 19, 2026
 **Purpose:** Single source of truth for which parts of AI Marketing OS are running on Legacy architecture vs Canonical architecture. Anyone touching a Tab or Route must check this file first.
 
 ---
@@ -44,6 +44,27 @@ Status table above.
 | Quality Layer | `app/lib/ai/quality/` | ✅ Built + smoke-tested |
 | Agents | `app/lib/ai/agents/` | ✅ Research, SEO, Content, Creative, Ads, Analytics, and Video Planning canonical |
 | Providers (canonical) | `app/lib/ai/providers/` | ✅ Built + all Phase 1 canonical capabilities validated |
+
+---
+
+## Phase 2 Knowledge Engine Sprint Status
+
+| Sprint | Capability | Status | Validation |
+|---|---|---|---|
+| P2-A | Durable Knowledge Foundation | Closed | Development migration applied; schema, RLS, cross-business isolation, append-only protection, ownership, automated tests, lint, and production build passed |
+| P2-B | Source Ingestion and Normalization | In Progress | Entry Criteria satisfied; implementation started after P2-A closure |
+| P2-C | Extraction, Synthesis, and Conflict Detection | Not Started | Blocked until P2-B closure |
+| P2-D | Validation, Approval, and Versioning | Not Started | Blocked until P2-C closure |
+| P2-E | Knowledge Slice | Not Started | Blocked until P2-D closure |
+| P2-F | Canonical Runtime Integration | Not Started | Blocked until P2-E closure |
+| P2-G | Candidate Updates and Phase 2 Closure | Not Started | Blocked until P2-F closure |
+
+P2-A database validation used the designated Supabase Development project.
+The forward migration was applied atomically. Schema, RLS, two-user/two-business
+isolation, and immutable-history protections were verified with transactional
+fixtures that were rolled back after validation. The destructive foundation
+rollback was intentionally not executed against the existing development
+database, per the approved validation exception.
 
 ---
 
