@@ -7,7 +7,14 @@ import PricingSection from "@/components/landing/PricingSection";
 import WorkflowSection from "@/components/landing/WorkflowSection";
 import Navbar from "@/components/layout/Navbar";
 import { getUserAndProfile } from "@/app/lib/db/getUserData";
-import AINetworkHero from "@/components/HeroNetwork/AINetworkHero";
+
+import Hero from "@/components/home/Hero";
+import Problem from "@/components/home/Problem";
+import Solution from "@/components/home/Solution";
+import LoopWorkflow from "@/components/home/LoopWorkflow";
+import IntelligenceCompounding from "@/components/home/IntelligenceCompounding";
+import Workspace from "@/components/home/Workspace";
+import CTA from "@/components/home/CTA";
 
 async function Home() {
   const { user } = await getUserAndProfile();
@@ -19,17 +26,21 @@ async function Home() {
     <header>
       <Navbar />
       <main>
-        <AINetworkHero primaryCta={primaryCta} />
-
-        {/* featur */}
+        {/* <HeroSection primaryCta={primaryCta} />
         <FeaturesSection />
-        {/* content */}
         <ContentSection primaryCta={primaryCta} />
-        {/* workflow */}
         <WorkflowSection />
-        {/* price */}
         <PricingSection />
-        <FAQSection primaryCta={primaryCta} />
+        <FAQSection primaryCta={primaryCta} /> */}
+        <Hero />
+        <Problem />
+        <Solution />
+        <LoopWorkflow />
+        <IntelligenceCompounding />
+
+        <Workspace />
+
+        <CTA />
         <Footer />
       </main>
     </header>

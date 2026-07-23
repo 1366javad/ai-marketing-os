@@ -111,7 +111,7 @@ Marketing Brain
 ├── Memory Coordinator      — the only component allowed to write memory
 │                             (today: Orchestrator memory writes)
 ├── Knowledge Coordinator   — connects Business Memory / Knowledge Engine
-│                             into context (Phase 2 — not yet built)
+│                             into context (Phase 2 — built and validated)
 ├── Approval / UX Coordinator — applies the user's approval experience
 │                             (Guided / Professional / Autonomous — see
 │                             Section 9) on top of Risk Engine decisions
@@ -156,7 +156,7 @@ was previously missing from this document. Full detail:
 |---|---|---|
 | When it applies | No valid, non-archived `campaignId` on the request | A valid, non-archived `campaignId` is present |
 | Context Slicing | Skipped entirely | `getCampaignContextSlice()` is called before routing |
-| What the Agent receives | Only the Brief Builder's normalized prompt | Normalized prompt **plus** the campaign context slice + relevant approved events |
+| What the Agent receives | An approved Brief without Campaign Context | An approved Brief enriched by bounded Campaign Context and, when business scope exists, bounded Knowledge; raw slices are never passed directly to the Agent |
 | Memory writes at generation time | None | Yes — every output passes through Risk Gate and is written as a Memory Event |
 | Later "save to campaign" | Possible — creates a `retroactive_attach` event (still risk-gated, floor: medium regardless of content) | N/A — already attached |
 
@@ -250,7 +250,9 @@ customers, sales calls, support tickets, FAQs, previous campaigns).
 
 Purpose: help the Brain understand the business.
 
-Status: Phase 2 — not yet built. See Section 13.
+Status: Business Memory foundation built and validated through the Phase 2
+Knowledge Engine. See `phase-2-knowledge-engine-design-package-v1.md` and
+`migration-map.md`.
 
 ### 7.2 Campaign Memory
 
@@ -271,7 +273,8 @@ Meta Ads Library, Google Trends, Reddit, YouTube/TikTok patterns).
 
 Purpose: help the Brain understand the outside market.
 
-Status: Not required for Phase 1 (Phase 3).
+Status: Architecture frozen in `market-memory-architecture.md`; implementation
+not started (Phase 3).
 
 ### 7.4 Learning Memory
 
@@ -280,7 +283,8 @@ audience response).
 
 Purpose: help the Brain improve future decisions.
 
-Status: Not required for Phase 1 (Phase 4).
+Status: Architecture frozen in `learning-memory-architecture.md`; implementation
+not started (Phase 4).
 
 ---
 
@@ -298,8 +302,9 @@ Knowledge Engine is inspired by NotebookLM, but it is not NotebookLM.
 NotebookLM understands documents. AI Marketing OS must understand the
 business.
 
-Status: Phase 2 — not yet built. No specialized doc exists yet; one should
-be created when this phase starts (do not design it inside this Blueprint).
+Status: Built and validated in Phase 2. The frozen implementation contracts
+are in `phase-2-knowledge-engine-design-package-v1.md`; responsibility remains
+governed by `adr-006-knowledge-engine-responsibility.md`.
 
 ---
 
@@ -375,13 +380,12 @@ mistakes the target for what's actually running today.
 | Marketing Input Guard | 🟢 Built + smoke-tested | `marketing-input-guard.md` |
 | Brief Builder | 🟢 Built + smoke-tested | — |
 | Quality Layer | 🟢 Built + smoke-tested | — |
-| Research Tab | 🟡 In progress (canonical agent built, route migrating) | `migration-map.md` |
-| Content Tab | 🟡 In progress (canonical agent built, route migrating) | `migration-map.md` |
-| SEO / Creative / Video / Ads / Analytics Tabs | 🔴 Legacy (canonical agents not yet built) | `migration-map.md` |
-| Video planning route | 🟢 Canonical (contract locked, Video Agent V2 not built) | `migration-map.md` |
-| Knowledge Engine | 🔴 Not started (Phase 2) | — |
-| Market Memory | 🔴 Not started (Phase 3) | — |
-| Learning Memory | 🔴 Not started (Phase 4) | — |
+| Research / SEO / Content / Creative / Ads / Analytics Tabs | 🟢 Canonical + validated | `migration-map.md` |
+| Video planning route | 🟢 Canonical + validated | `migration-map.md` |
+| Knowledge Engine | 🟢 Phase 2 closed + validated | `phase-2-knowledge-engine-design-package-v1.md`, `migration-map.md` |
+| Business Memory foundation | 🟢 Built through Knowledge Engine | `migration-map.md` |
+| Market Memory | 🟡 Architecture frozen; implementation not started (Phase 3) | `market-memory-architecture.md` |
+| Learning Memory | 🟡 Architecture frozen; implementation not started (Phase 4) | `learning-memory-architecture.md` |
 | UX Approval Modes (Guided/Prof/Autonomous) | 🔴 Not started | See Section 10 |
 
 For live, authoritative status per Tab/Route, always check `migration-map.md`

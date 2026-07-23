@@ -1,0 +1,2 @@
+import { authenticatedLearningService, learningError } from "../_service";
+export async function POST(request) { try { const { service, user } = await authenticatedLearningService(); if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 }); return Response.json({ hypothesis: await service.registerLearningHypothesis({ ...(await request.json()), actorId: user.id }) }, { status: 201 }); } catch (error) { return learningError(error, "Learning hypothesis registration failed"); } }

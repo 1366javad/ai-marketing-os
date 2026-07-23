@@ -49,10 +49,20 @@ export default function AINetworkHero({
     let packets = [];
     let verticals = [];
     let hubIndices = [];
+    const timeoutIds = new Set();
+    let running = true;
+    let pulseScheduled = false;
 
     // Frame throttle ~30fps
     const FRAME_MS = 1000 / 30;
+    const CYCLE_MS = 14500;
+    const RAMP_MS = 8800;
+    const BURST_MS = 3300;
     let lastFrame = 0;
+    let cycleStart = 0;
+    let nextCyclePulse = 0;
+    let burstStarted = false;
+    let burstStrength = 0;
 
     function resize() {
       const rect = container.getBoundingClientRect();
@@ -66,6 +76,8 @@ export default function AINetworkHero({
     }
 
     function init() {
+      clearScheduledTimeouts();
+
       nodes = [];
       packets = [];
       verticals = [];
@@ -121,7 +133,9 @@ export default function AINetworkHero({
       }
 
       // Kick off with one hub activating
+      resetCycle(performance.now());
       activateHub(0);
+      scheduleNetworkPulse();
     }
 
     function makeNode(x, y, isHub, hubIndex) {
@@ -142,6 +156,8 @@ export default function AINetworkHero({
     }
 
     function activateHub(hubIdx) {
+      if (!running || !visibleRef.current) return;
+
       const nodeIdx = hubIndices[hubIdx];
       if (nodeIdx == null) return;
       const hub = nodes[nodeIdx];
@@ -161,13 +177,151 @@ export default function AINetworkHero({
       // Schedule chain — organic timing
       const delay = 1400 + Math.random() * 2800;
       const nextHub = hubIndices.indexOf(targetNodeIdx);
-      setTimeout(() => activateHub(nextHub), delay);
+      scheduleTimeout(() => activateHub(nextHub), delay);
 
       // Occasional overlap — sometimes another hub also fires
       if (Math.random() < 0.35) {
         const extra = Math.floor(Math.random() * HUB_COUNT);
-        setTimeout(() => activateHub(extra), 400 + Math.random() * 900);
+        scheduleTimeout(() => activateHub(extra), 400 + Math.random() * 900);
       }
+    }
+
+    function scheduleTimeout(callback, delay) {
+      const timeoutId = window.setTimeout(() => {
+        timeoutIds.delete(timeoutId);
+        if (running && visibleRef.current) callback();
+      }, delay);
+
+      timeoutIds.add(timeoutId);
+      return timeoutId;
+    }
+
+    function scheduleNetworkPulse() {
+      if (!running || !visibleRef.current || pulseScheduled) return;
+
+      pulseScheduled = true;
+      scheduleTimeout(() => {
+        pulseScheduled = false;
+        triggerNetworkPulse();
+        scheduleNetworkPulse();
+      }, 2600 + Math.random() * 1800);
+    }
+
+    function triggerNetworkPulse(intensity = 1) {
+      if (!running || !visibleRef.current || hubIndices.length < 2) return;
+
+      const pulseCount = Math.min(
+        HUB_COUNT,
+        Math.round((isMobile ? 2 : 3) * intensity),
+      );
+      const usedHubs = new Set();
+
+      for (let i = 0; i < pulseCount; i++) {
+        let hubIdx = Math.floor(Math.random() * HUB_COUNT);
+        let guard = 0;
+
+        while (usedHubs.has(hubIdx) && guard < HUB_COUNT) {
+          hubIdx = Math.floor(Math.random() * HUB_COUNT);
+          guard += 1;
+        }
+
+        usedHubs.add(hubIdx);
+
+        const nodeIdx = hubIndices[hubIdx];
+        const targetOptions = hubIndices.filter((_, index) => index !== hubIdx);
+        const targetNodeIdx =
+          targetOptions[Math.floor(Math.random() * targetOptions.length)];
+
+        if (nodeIdx == null || targetNodeIdx == null) continue;
+
+        nodes[nodeIdx].glow = 1;
+
+        const packetCount = Math.round((isMobile ? 3 : 5) * intensity);
+        for (let packetIndex = 0; packetIndex < packetCount; packetIndex++) {
+          emitPacketFrom(nodeIdx, targetNodeIdx);
+        }
+      }
+    }
+
+    function resetCycle(ts, restart = false) {
+      clearScheduledTimeouts();
+
+      cycleStart = ts;
+      nextCyclePulse = ts + 900;
+      burstStarted = false;
+      burstStrength = 0;
+      packets = [];
+
+      for (const n of nodes) {
+        n.glow = n.hubIndex >= 0 ? 0.15 : 0;
+      }
+
+      if (restart) {
+        activateHub(Math.floor(Math.random() * HUB_COUNT));
+        triggerNetworkPulse(0.8);
+        scheduleNetworkPulse();
+      }
+    }
+
+    function updateCycle(ts) {
+      const elapsed = ts - cycleStart;
+
+      if (elapsed >= CYCLE_MS) {
+        resetCycle(ts, true);
+        return;
+      }
+
+      if (elapsed < RAMP_MS) {
+        const ramp = elapsed / RAMP_MS;
+        const interval = 1350 - ramp * 1050;
+
+        if (ts >= nextCyclePulse) {
+          triggerNetworkPulse(0.7 + ramp * 1.35);
+          nextCyclePulse = ts + interval;
+        }
+
+        return;
+      }
+
+      const burstElapsed = elapsed - RAMP_MS;
+      const burstProgress = Math.min(burstElapsed / BURST_MS, 1);
+
+      if (!burstStarted) {
+        burstStarted = true;
+        triggerGalaxyBurst();
+      }
+
+      const wave = Math.sin(burstProgress * Math.PI);
+      burstStrength = Math.max(0, wave);
+
+      if (ts >= nextCyclePulse) {
+        triggerNetworkPulse(1.65 + wave * 1.15);
+        nextCyclePulse = ts + 220;
+      }
+    }
+
+    function triggerGalaxyBurst() {
+      if (!running || !visibleRef.current) return;
+
+      for (let i = 0; i < hubIndices.length; i++) {
+        const nodeIdx = hubIndices[i];
+        nodes[nodeIdx].glow = 1;
+
+        for (let j = 0; j < hubIndices.length; j++) {
+          if (i === j) continue;
+
+          const packetCount = isMobile ? 2 : 4;
+          for (let k = 0; k < packetCount; k++) {
+            emitPacketFrom(nodeIdx, hubIndices[j]);
+          }
+        }
+      }
+    }
+
+    function clearScheduledTimeouts() {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timeoutIds.clear();
+      pulseScheduled = false;
     }
 
     function emitPacketFrom(fromNode, hubTarget) {
@@ -196,17 +350,35 @@ export default function AINetworkHero({
       });
     }
 
-    function step(dt) {
+    function step(dt, ts) {
+      updateCycle(ts);
+
       // Update nodes (gentle drift + return to base + mouse influence on near nodes)
       const m = mouseRef.current;
+      const cx = width / 2;
+      const cy = height / 2;
+
       for (const n of nodes) {
         // parallax drift by depth
         const driftK = 0.3 + n.depth * 0.7;
         n.x += n.vx * driftK * (dt / 16);
         n.y += n.vy * driftK * (dt / 16);
+
+        if (burstStrength > 0) {
+          const dx = n.x - cx;
+          const dy = n.y - cy;
+          const dist = Math.hypot(dx, dy) + 0.01;
+          const force = burstStrength * (0.35 + n.depth * 0.9) * (dt / 16);
+          const swirl = burstStrength * 0.38 * (dt / 16);
+
+          n.x += (dx / dist) * force + (-dy / dist) * swirl;
+          n.y += (dy / dist) * force + (dx / dist) * swirl;
+        }
+
         // restoring force
-        n.x += (n.baseX - n.x) * 0.008;
-        n.y += (n.baseY - n.y) * 0.008;
+        const restore = burstStrength > 0 ? 0.003 : 0.008;
+        n.x += (n.baseX - n.x) * restore;
+        n.y += (n.baseY - n.y) * restore;
 
         if (m.active) {
           const dx = n.x - m.x;
@@ -251,7 +423,8 @@ export default function AINetworkHero({
       }
       packets = packets.filter((p) => p.t < 1);
       // safety cap
-      if (packets.length > 80) packets.splice(0, packets.length - 80);
+      const packetCap = burstStrength > 0.2 ? 130 : 80;
+      if (packets.length > packetCap) packets.splice(0, packets.length - packetCap);
 
       // Verticals
       for (const v of verticals) {
@@ -266,6 +439,14 @@ export default function AINetworkHero({
 
     function draw() {
       ctx.clearRect(0, 0, width, height);
+      ctx.save();
+
+      if (burstStrength > 0) {
+        const zoom = 1 + burstStrength * 0.045;
+        ctx.translate(width / 2, height / 2);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-width / 2, -height / 2);
+      }
 
       // Vertical signals (very subtle)
       for (const v of verticals) {
@@ -301,8 +482,13 @@ export default function AINetworkHero({
           const avgDepth = (a.depth + b.depth) / 2;
           const baseAlpha = 0.35 + avgDepth * 0.65;
           ctx.strokeStyle = active ? palette.lineActive : palette.line;
-          ctx.globalAlpha = active ? 0.9 : baseAlpha;
-          ctx.lineWidth = active ? 1.1 : 0.6;
+          ctx.globalAlpha = Math.min(
+            1,
+            active ? 0.9 : baseAlpha + burstStrength * 0.35,
+          );
+          ctx.lineWidth = active
+            ? 1.1 + burstStrength * 0.9
+            : 0.6 + burstStrength * 0.45;
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
@@ -377,6 +563,8 @@ export default function AINetworkHero({
         ctx.arc(x, y, 8, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      ctx.restore();
     }
 
     function withAlpha(rgba, a) {
@@ -389,13 +577,31 @@ export default function AINetworkHero({
     }
 
     function loop(ts) {
-      rafRef.current = requestAnimationFrame(loop);
-      if (!visibleRef.current) return;
+      if (!running || !visibleRef.current) {
+        rafRef.current = null;
+        return;
+      }
+
       const dt = ts - lastFrame;
-      if (dt < FRAME_MS) return;
-      lastFrame = ts;
-      step(dt);
-      draw();
+      if (dt >= FRAME_MS) {
+        lastFrame = ts;
+        step(dt, ts);
+        draw();
+      }
+
+      rafRef.current = requestAnimationFrame(loop);
+    }
+
+    function startLoop() {
+      if (!running || !visibleRef.current || rafRef.current) return;
+      lastFrame = performance.now();
+      rafRef.current = requestAnimationFrame(loop);
+    }
+
+    function stopLoop() {
+      if (!rafRef.current) return;
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
 
     // Observers
@@ -407,7 +613,22 @@ export default function AINetworkHero({
 
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) visibleRef.current = e.isIntersecting;
+        for (const e of entries) {
+          const wasVisible = visibleRef.current;
+          visibleRef.current = e.isIntersecting;
+
+          if (e.isIntersecting) {
+            startLoop();
+            if (!wasVisible) {
+              activateHub(Math.floor(Math.random() * HUB_COUNT));
+              triggerNetworkPulse();
+              scheduleNetworkPulse();
+            }
+          } else {
+            stopLoop();
+            clearScheduledTimeouts();
+          }
+        }
       },
       { threshold: 0.01 },
     );
@@ -424,19 +645,39 @@ export default function AINetworkHero({
     function onLeave() {
       mouseRef.current.active = false;
     }
+    function onVisibilityChange() {
+      if (document.hidden) {
+        visibleRef.current = false;
+        stopLoop();
+        clearScheduledTimeouts();
+        return;
+      }
+
+      visibleRef.current = container.getBoundingClientRect().bottom > 0;
+      if (visibleRef.current) {
+        startLoop();
+        activateHub(Math.floor(Math.random() * HUB_COUNT));
+        scheduleNetworkPulse();
+      }
+    }
+
     container.addEventListener("mousemove", onMove);
     container.addEventListener("mouseleave", onLeave);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     resize();
     init();
-    rafRef.current = requestAnimationFrame(loop);
+    startLoop();
 
     return () => {
+      running = false;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      clearScheduledTimeouts();
       ro.disconnect();
       io.disconnect();
       container.removeEventListener("mousemove", onMove);
       container.removeEventListener("mouseleave", onLeave);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
@@ -459,7 +700,11 @@ export default function AINetworkHero({
           Live · AI Marketing OS
         </div>
         <h1 className="max-w-4xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl dark:text-slate-100 text-slate-900">
-          An operating system that runs your marketing
+          The AI Campaign{" "}
+          <span className="bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
+            Workspace
+          </span>{" "}
+          for Modern Marketing Teams
         </h1>
         <p className="mt-5 max-w-2xl text-base sm:text-lg dark:text-white/60 text-slate-600">
           Continuous, coordinated intelligence — planning, producing and

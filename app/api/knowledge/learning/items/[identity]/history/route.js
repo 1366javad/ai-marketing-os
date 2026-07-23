@@ -1,0 +1,2 @@
+import { authenticatedLearningService, learningError } from "../../../_service";
+export async function GET(request, context) { try { const { service, user } = await authenticatedLearningService(); if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 }); const { identity } = await context.params; return Response.json({ versions: await service.getLearningMemoryHistory(new URL(request.url).searchParams.get("businessId"), decodeURIComponent(identity)) }); } catch (error) { return learningError(error, "Learning history failed"); } }

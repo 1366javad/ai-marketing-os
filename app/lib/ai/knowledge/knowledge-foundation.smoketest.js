@@ -73,15 +73,23 @@ const fakeSupabase = {
   },
 };
 const persistence = createSupabaseKnowledgePersistence(fakeSupabase);
-expect("persistence adapter covers every required record", Object.keys(TABLES).length === 9);
+expect("persistence adapter covers business, market, and learning memory records", Object.keys(TABLES).length === 31);
 expectThrows("adapter rejects unscoped writes", () => persistence.insertSource({}));
 
 const migration = fs.readFileSync(
   path.join(process.cwd(), "supabase/migrations/202607180001_phase2_knowledge_foundation.sql"),
   "utf8",
 );
+const marketMigration = fs.readFileSync(
+  path.join(process.cwd(), "supabase/migrations/202607220001_market_memory.sql"),
+  "utf8",
+);
+const learningMigration = fs.readFileSync(
+  path.join(process.cwd(), "supabase/migrations/202607220002_learning_memory.sql"),
+  "utf8",
+);
 for (const table of Object.values(TABLES)) {
-  expect(`migration defines ${table}`, migration.includes(`public.${table}`));
+  expect(`migration defines ${table}`, `${migration}\n${marketMigration}\n${learningMigration}`.includes(`public.${table}`));
 }
 expect("all knowledge tables enable RLS", (migration.match(/enable row level security/g) || []).length >= 11);
 expect("business access is membership scoped", migration.includes("is_business_member(business_id)"));

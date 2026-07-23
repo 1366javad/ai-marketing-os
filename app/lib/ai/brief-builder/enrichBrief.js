@@ -112,7 +112,7 @@ function enrichBrief({
 function formatKnowledgeContext(items) {
   if (!items.length) return "No approved business knowledge is available for this request.";
   return items.map((item) => [
-    `- [${item.domain}] ${formatKnowledgeValue(item.value)}`,
+    `- [${item.memoryKind || "business"}:${item.domain}] ${formatKnowledgeValue(item.value)}`,
     `(knowledgeId=${item.knowledgeId}; version=${item.version}; sources=${item.sourceIds.join(",") || "none"})`,
   ].join(" ")).join("\n");
 }

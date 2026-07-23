@@ -34,7 +34,7 @@ Pending artifacts are never visible to other agents.
 | content | email_draft | (none) | Terminal output |
 | creative | creative_concept | ads | Ads build on approved creative concepts |
 | creative | image_asset | ads | Ads reference approved visuals |
-| analytics | campaign_learning | (all) | Analytics feeds learning back to all modules |
+| analytics | campaign_learning | (none) | Observational Campaign Memory event; it cannot feed Agents until governed validation and approval create runtime-visible Learning Memory |
 
 ---
 

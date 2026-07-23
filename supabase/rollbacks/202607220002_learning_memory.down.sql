@@ -1,0 +1,11 @@
+drop function if exists public.create_learning_candidate_update(uuid,text,text,jsonb,text,text,jsonb,uuid,text);
+drop function if exists public.transition_learning_version(uuid,uuid,text,uuid,text,text);
+drop function if exists public.assess_learning_decay(uuid,timestamptz,text,uuid,text);
+drop function if exists public.resolve_learning_conflict(uuid,uuid,uuid,uuid,text,text);
+drop function if exists public.reject_learning_hypothesis(uuid,uuid,uuid,text,text);
+drop function if exists public.approve_learning_hypothesis(uuid,uuid,jsonb,uuid,text,timestamptz,timestamptz,jsonb,text);
+drop function if exists public.save_learning_validation(uuid,uuid,text,numeric,text,text,integer,integer,integer,boolean,jsonb,uuid,text);
+drop function if exists public.attach_learning_evidence(uuid,uuid,uuid,text,text,uuid,text);
+drop function if exists public.register_learning_hypothesis(uuid,text,text,text,text,text,text,text,text,jsonb,jsonb,timestamptz,timestamptz,uuid[],uuid,text);
+drop function if exists public.register_learning_observation(uuid,text,text,uuid,text,text,jsonb,text,jsonb,jsonb,timestamptz,jsonb,text,numeric,text,jsonb,uuid,text);
+drop table if exists public.learning_audit_events,public.learning_candidate_updates,public.learning_decay_assessments,public.learning_version_evidence,public.learning_versions,public.learning_conflicts,public.learning_validation_runs,public.learning_evidence_references,public.learning_hypotheses,public.learning_observations cascade;

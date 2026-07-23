@@ -67,7 +67,8 @@ Creative   (feeds Ads)
    ↓
 Ads        (terminal in the current Matrix)
    ↓
-Analytics  (reads everything — campaign_learning feeds back to all modules)
+Analytics  (reads everything; campaign_learning is a terminal observation in
+            Campaign Memory until governed Learning Memory promotion)
 
 Video runs in parallel (independent contract, already locked)
 ```
@@ -279,9 +280,9 @@ not because they're scheduled:
 | Item | Owner document when it starts |
 |---|---|
 | UX Approval Modes (Guided / Professional / Autonomous) — Blueprint Section 10 | New ADR + `implementation-architecture-v1.md` update (new `approval/` folder) |
-| Knowledge Engine (Phase 2) | New ADR + new specialized doc, per Blueprint Section 8 |
-| Market Memory (Phase 3) | New ADR |
-| Learning Memory feedback loop into agent context (Phase 4) | New ADR — note `campaign_learning` writes already happen in Sprint F; the *feedback into other agents' context* is what's deferred |
+| Knowledge Engine (Phase 2) | Completed under ADR-006 and `phase-2-knowledge-engine-design-package-v1.md`; live status is in `migration-map.md` |
+| Market Memory (Phase 3) | `market-memory-architecture.md`; implementation sequencing is not defined by this Phase 1 roadmap |
+| Learning Memory feedback loop into agent context (Phase 4) | `learning-memory-architecture.md`; note `campaign_learning` writes already happen in Sprint F, while governed feedback into future Agent context remains unimplemented |
 | Video Phase 2 tasks (`reel_package`, `tiktok_video`, `youtube_short`, `campaign_package`) | Extension of Sprint G once Phase 1 core is done |
 
 ---

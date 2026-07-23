@@ -1,0 +1,2 @@
+import { authenticatedLearningService, learningError } from "../../../_service";
+export async function POST(request, context) { try { const { service, user } = await authenticatedLearningService(); if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 }); const { id } = await context.params; return Response.json({ conflict: await service.resolveLearningConflict({ ...(await request.json()), conflictId: id, actorId: user.id }) }); } catch (error) { return learningError(error, "Learning conflict resolution failed"); } }

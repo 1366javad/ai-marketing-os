@@ -1,0 +1,2 @@
+import { authenticatedLearningService, learningError } from "../_service";
+export async function GET(request) { try { const { service, user } = await authenticatedLearningService(); if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 }); return Response.json({ items: await service.listLearningMemory(new URL(request.url).searchParams.get("businessId")) }); } catch (error) { return learningError(error, "Learning Memory listing failed"); } }

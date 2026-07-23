@@ -1,0 +1,2 @@
+import { authenticatedLearningService, learningError } from "../../../_service";
+export async function POST(request, context) { try { const { service, user } = await authenticatedLearningService(); if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 }); const { id } = await context.params; const body = await request.json().catch(() => ({})); return Response.json({ validation: await service.validateLearningHypothesis({ ...body, hypothesisId: id, actorId: user.id }) }); } catch (error) { return learningError(error, "Learning validation failed"); } }

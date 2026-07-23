@@ -9,6 +9,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        background: "var(--color-background)",
+        foreground: "var(--color-foreground)",
+        card: "var(--color-card)",
+        border: "var(--color-border)",
+        brand: "var(--color-brand)",
+        "brand-2": "var(--color-brand-2)",
         primary: {
           50: "#EEF2FF",
           100: "#E0E7FF",

@@ -79,9 +79,9 @@ module has a single responsibility and a hard boundary on what it may call.
 |---|---|---|---|
 | `input-guard` | Validate raw prompt structurally/topically | Nothing else in `app/lib/ai/` | `campaign/`, `orchestrator/`, any agent, any provider |
 | `brief-builder` | Normalize validated input into `MarketingBrief` | Nothing else in `app/lib/ai/` (context enrichment from Campaign Context happens in CAMPAIGN_MODE, but brief-builder does not call `getCampaignContextSlice()` itself — see `marketing-input-guard.md`, "Relationship to Campaign Context") | `campaign/` directly, any agent, any provider |
-| `orchestrator` | Mode detection, routing, context injection, risk classification/gating, memory writes | `campaign/`, `agents/*`, `quality/` | Nothing outside `app/lib/ai/`; never bypasses its own Risk Gate |
+| `orchestrator` | Mode detection, planning, bounded Knowledge/Context retrieval, Brief construction, routing, risk classification/gating, and Campaign Memory writes | `knowledge/`, `campaign/`, `brief-builder/`, `agents/*`, `quality/` | Providers or persistence directly; never bypasses its own Risk Gate |
 | `campaign` | Own `CampaignContextObject` and `CampaignMemoryEvent` storage; expose `getCampaignContextSlice()` and the write path | Nothing else in `app/lib/ai/` (it is a leaf — pure data + slicing logic) | Any agent, any provider, orchestrator internals |
-| `agents/<module>` | Produce one structured output from `(task, contextSlice \| null)` | `providers/` only | `campaign/` (no direct memory read/write), any other `agents/<other-module>`, `orchestrator/` |
+| `agents/<module>` | Produce one structured output from an approved `MarketingBrief` | `providers/` only | `campaign/` or Knowledge Engine (no direct memory read/write), any other `agents/<other-module>`, `orchestrator/` |
 | `quality` | Validate agent output structurally against `MarketingBrief` | Nothing else in `app/lib/ai/` | `campaign/`, any agent, any provider |
 | `providers` | Adapt to a specific LLM/API vendor | External vendor SDKs/APIs only | `campaign/`, `orchestrator/`, any agent's business logic |
 
@@ -103,9 +103,10 @@ details of a module, which can change freely.
 |---|---|---|---|
 | `OrchestratorService` | `runOrchestrator(request)` | API routes only | `orchestrator/` |
 | `InputGuardService` | `validateInput(rawPrompt)` | API routes, before `OrchestratorService` (per pipeline order, Section 4) | `input-guard/` |
-| `BriefBuilderService` | `buildBrief(validatedInput, executionPlan, contextSlice)` | `OrchestratorService` | `brief-builder/` |
+| `BriefBuilderService` | `buildBrief(validatedInput, executionPlan, knowledgeSlice, contextSlice)` | `OrchestratorService` | `brief-builder/` |
 | `CampaignMemoryService` | `getCampaignContextSlice(campaignId, module, task, options)`, `writeMemoryEvent(event)` | `OrchestratorService` only | `campaign/` |
-| `AgentService` (one per module) | `runAgent(task, contextSlice \| null)` | `OrchestratorService` only | `agents/<module>/` |
+| `KnowledgeService` | Runtime `getKnowledgeSlice(request)` plus governed lifecycle operations defined by the Phase 2 package | `OrchestratorService` for runtime reads; authenticated Knowledge routes for management | `knowledge/` |
+| `AgentService` (one per module) | `runAgent(brief)` | `OrchestratorService` only | `agents/<module>/` |
 | `QualityService` | `runQualityChecks(agentOutput, brief)` | `OrchestratorService` | `quality/` |
 | `ProviderService` (one per vendor) | vendor-specific adapter call, normalized to a common response shape | `AgentService` implementations only | `providers/` |
 
@@ -126,6 +127,8 @@ Section 2 — reproduced here only as the skeleton other sections reference:
 Input Guard
   ↓
 Orchestrator: detectMode()          → TOOL_MODE | CAMPAIGN_MODE
+  ↓
+[business scope available] Knowledge Slice
   ↓
 [CAMPAIGN_MODE only] getCampaignContextSlice()
   ↓
@@ -156,8 +159,7 @@ retyped in full — only the signature is repeated here for map purposes.
 
 ```ts
 type IAgent = (
-  task: MarketingBrief,
-  contextSlice: CampaignContextSlice | null
+  brief: MarketingBrief
 ) => AgentOutput
 ```
 
@@ -233,29 +235,23 @@ explicit and testable in isolation:
 ```ts
 type IOrchestrator = {
   detectMode(request): "TOOL_MODE" | "CAMPAIGN_MODE"
+  buildExecutionPlan(request): ExecutionPlan
+  executeCanonicalPipeline(validatedInput, executionPlan): CanonicalResult
   selectAgent(module): IAgent
   classifyRisk(agentOutput): "low" | "medium" | "high"   // enforces floor, see 5.1
   runRiskGate(finalRisk, agentOutput): { status, blocked: boolean }
 }
 ```
 
-### 5.5 `IKnowledge` (planned interface — Phase 2, not yet built)
+### 5.5 `IKnowledge` (canonical KnowledgeService boundary)
 
-Documented now only so Phase 2 does not start from zero:
-
-```ts
-type IKnowledge = (
-  rawSource: Document | URL | Transcript
-) => {
-  structuredFacts: object
-  brandVoiceRules: object
-  audienceInsights: object
-  sourceProvenance: { sourceId: string, extractedAt: string }
-}
-```
-
-This is a placeholder shape, not a locked contract — must be finalized as
-its own ADR before Phase 2 implementation begins.
+The former placeholder interface has been superseded by the frozen contracts
+in `phase-2-knowledge-engine-design-package-v1.md`. Runtime access is read-only
+and Orchestrator-owned through one bounded Knowledge Slice. Source processing,
+candidate review, approval, versioning, and administration use the canonical
+KnowledgeService boundary; Routes and Agents never access durable persistence
+directly. Market Memory and Learning Memory extend this same Knowledge Slice
+as separately traceable domain projections rather than parallel runtime paths.
 
 ---
 
@@ -477,5 +473,6 @@ including removal of the legacy path before the final status update.
   re-argued)
 - Build order / sprint sequencing → `execution-roadmap-v1.md` (next
   document)
-- Knowledge Engine, Market Memory, Learning Memory internal design →
-  belongs to their own future ADRs/specs when those phases start
+- Knowledge Engine internal design → `phase-2-knowledge-engine-design-package-v1.md`
+- Market Memory internal design → `market-memory-architecture.md`
+- Learning Memory internal design → `learning-memory-architecture.md`

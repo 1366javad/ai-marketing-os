@@ -14,7 +14,7 @@
   remains blocked, and is not publishable until explicit human approval.
 - Removed `app/lib/ai/legacy/agents/ads/index.js` after successful validation.
 
-## ACR-005 Documentation Alignment
+## Approved Content-to-Ads Documentation Alignment
 
 - `context-slicing-matrix.md`: `content + blog_draft` now feeds Creative only.
 - `execution-roadmap-v1.md`: the dependency summary now states that Content
